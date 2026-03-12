@@ -1,0 +1,183 @@
+// Prisma Schema — Thủ Thiêm Construction ERP
+// Run: npx prisma generate && npx prisma db push
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── PROJECT ────────────────────────────────────────────────────────────────
+
+model Project {
+  id              Int      @id @default(autoincrement())
+  projectCode     String   @unique
+  projectName     String
+  customerName    String
+  customerPhone   String?
+  contractValue   Float    @default(0)
+  status          String   @default("DRAFT") // DRAFT | ACTIVE | COMPLETED | WARRANTY
+  startDate       DateTime?
+  expectedEndDate DateTime?
+
+  boqSnapshots    BOQSnapshot[]
+  milestones      PaymentMilestone[]
+  vos             VariationOrder[]
+  quotes          SubcontractorQuote[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── BOQ ─────────────────────────────────────────────────────────────────────
+
+model BOQSnapshot {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  project     Project  @relation(fields: [projectId], references: [id])
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  isLocked    Boolean  @default(false)
+  lockedBy    String?
+  lockedAt    DateTime?
+  status      String   @default("DRAFT") // DRAFT | APPROVED | LOCKED
+  totalCost   Float    @default(0)       // Tổng giá vốn (ẩn với khách)
+  totalSell   Float    @default(0)       // Tổng giá bán (hiển thị khách)
+
+  categories  BOQCategory[]
+  createdAt   DateTime @default(now())
+}
+
+model BOQCategory {
+  id          Int      @id @default(autoincrement())
+  snapshotId  Int
+  snapshot    BOQSnapshot @relation(fields: [snapshotId], references: [id])
+  itemCode    String
+  description String
+  sortOrder   Int      @default(0)
+
+  lines       BOQLine[]
+}
+
+// Level 2: Công tác thi công
+model BOQLine {
+  id              Int      @id @default(autoincrement())
+  categoryId      Int
+  category        BOQCategory @relation(fields: [categoryId], references: [id])
+  itemCode        String
+  description     String
+  unit            String
+  unitPrice       Float    @default(0)  // Đơn giá BÁN (hiện thị khách)
+  totalVolume     Float    @default(0)
+  totalPrice      Float    @default(0)  // = totalVolume * unitPrice
+
+  // Giá vốn & Thầu phụ (INTERNAL — không xuất PDF khách)
+  costPrice       Float?                // Đơn giá VỐN từ thầu phụ
+  subcontractorId Int?
+  subcontractor   Subcontractor? @relation("LineSubcontractor", fields: [subcontractorId], references: [id])
+  marginPct       Float?                // = (unitPrice - costPrice) / unitPrice * 100
+  marginWarning   Boolean  @default(false)  // true nếu marginPct < 15%
+
+  details         BOQDetail[]
+  quotesReceived  SubcontractorQuoteLine[]
+}
+
+// Level 3: Diễn giải chi tiết
+model BOQDetail {
+  id          Int     @id @default(autoincrement())
+  lineId      Int
+  line        BOQLine @relation(fields: [lineId], references: [id])
+  description String
+  quantity    Float?
+  length      Float?
+  width       Float?
+  height      Float?
+  coefficient Float?
+  volume      Float   @default(0)
+  sortOrder   Int     @default(0)
+}
+
+// ─── SUBCONTRACTOR ───────────────────────────────────────────────────────────
+
+model Subcontractor {
+  id            Int      @id @default(autoincrement())
+  name          String
+  specialty     String   // M&E | Xây tô | Nội thất gỗ | Ốp lát | Sơn | Điện
+  contactPhone  String?
+  contactName   String?
+  rating        Float?
+  completedJobs Int      @default(0)
+  status        String   @default("ACTIVE")
+  notes         String?
+
+  allocatedLines BOQLine[]              @relation("LineSubcontractor")
+  quotes         SubcontractorQuote[]
+
+  createdAt     DateTime @default(now())
+}
+
+// Báo giá của Thầu phụ cho một dự án (header)
+model SubcontractorQuote {
+  id              Int      @id @default(autoincrement())
+  subcontractorId Int
+  projectId       Int
+  subcontractor   Subcontractor      @relation(fields: [subcontractorId], references: [id])
+  project         Project            @relation(fields: [projectId], references: [id])
+  status          String   @default("PENDING") // PENDING | SELECTED | REJECTED
+  totalQuotedCost Float    @default(0)
+  submittedAt     DateTime?
+
+  lines           SubcontractorQuoteLine[]
+  createdAt       DateTime @default(now())
+}
+
+// Chi tiết báo giá — link trực tiếp vào BOQLine cấp 2
+model SubcontractorQuoteLine {
+  id             Int      @id @default(autoincrement())
+  quoteId        Int
+  boqLineId      Int
+  quote          SubcontractorQuote @relation(fields: [quoteId], references: [id])
+  boqLine        BOQLine            @relation(fields: [boqLineId], references: [id])
+  quotedUnitCost Float              // Đơn giá vốn thầu phụ báo
+  note           String?
+}
+
+// ─── PAYMENT ─────────────────────────────────────────────────────────────────
+
+model PaymentMilestone {
+  id            Int      @id @default(autoincrement())
+  projectId     Int
+  project       Project  @relation(fields: [projectId], references: [id])
+  milestoneOrder Int
+  milestoneName String
+  paymentPercent Float
+  paymentAmount Float
+  paidAmount    Float    @default(0)
+  dueDate       DateTime?
+  status        String   @default("DRAFT") // DRAFT | PENDING_APPROVAL | APPROVED | PAID | OVERDUE
+  createdById   Int?
+  approvedById  Int?
+  approvedAt    DateTime?
+}
+
+// ─── VARIATION ORDER ─────────────────────────────────────────────────────────
+
+model VariationOrder {
+  id               Int      @id @default(autoincrement())
+  projectId        Int
+  project          Project  @relation(fields: [projectId], references: [id])
+  voCode           String   @unique
+  title            String
+  description      String?
+  estimatedCost    Float    @default(0)
+  sellingPrice     Float    @default(0)
+  vatRate          Float    @default(0.1)
+  status           String   @default("DRAFT")
+  customerStatus   String   @default("pending")
+  guestLinkToken   String?  @unique
+  requestedById    Int?
+  createdAt        DateTime @default(now())
+}

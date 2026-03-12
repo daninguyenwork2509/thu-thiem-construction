@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none">
+  <!-- Icon: nested squares -->
+  <rect x="2" y="4" width="64" height="64" rx="6" fill="#E87625"/>
+  <rect x="14" y="16" width="40" height="40" rx="3" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="26" y="28" width="20" height="20" rx="2" fill="#F5A623"/>
+  <!-- Brand name -->
+  <text x="82" y="46" font-family="'Segoe UI', Arial, sans-serif" font-weight="800" font-size="30" fill="#E87625" letter-spacing="1">THỦ THIÊM</text>
+  <text x="82" y="68" font-family="'Segoe UI', Arial, sans-serif" font-weight="600" font-size="15" fill="#F5A623" letter-spacing="4">CONSTRUCTION</text>
+</svg>

@@ -51,8 +51,9 @@ function greeting() {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { user } = useAuth()
-  const firstName = user?.full_name?.split(" ").pop() ?? "bạn"
+  const { state } = useAuth()
+  const user = state.user
+  const firstName = user?.fullName?.split(" ").pop() ?? "bạn"
 
   const totalContracts   = mockProjects.reduce((s, p) => s + p.contract_value, 0)
   const totalPaid        = mockProjects.reduce((s, p) => s + p.total_paid, 0)

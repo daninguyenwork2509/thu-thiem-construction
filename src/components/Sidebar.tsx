@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard, AlertCircle,
   Wallet, Settings, Smartphone, ExternalLink,
-  HardHat, Package, LogOut, ChevronRight, Kanban, FolderOpen, ClipboardCheck
+  HardHat, Package, LogOut, ChevronRight, Kanban, FolderOpen, ClipboardCheck, FileText
 } from "lucide-react"
 import { useAuth, ROLE_COLORS } from "@/lib/auth-store"
 
@@ -20,6 +20,7 @@ const NAV_GROUPS = [
     label: "Quản lý dự án",
     items: [
       { href: "/pipeline", label: "Quản lý dự án",    icon: Kanban },
+      { href: "/boq",      label: "Dự toán BOQ",      icon: FileText },
       { href: "/qa",       label: "QA & Nghiệm thu",  icon: ClipboardCheck },
     ],
   },

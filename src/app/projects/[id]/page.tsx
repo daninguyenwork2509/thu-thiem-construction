@@ -126,7 +126,7 @@ export default function ProjectDetail() {
             <span className="text-gray-700 font-medium">{project.project_code}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/projects/${id}/boq`}
+            <Link href={`/boq?project=${id}`}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition">
               <FileText className="w-3.5 h-3.5" /> Bóc tách BOQ
             </Link>
@@ -318,16 +318,16 @@ export default function ProjectDetail() {
           <div className="space-y-4 max-w-5xl">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500">{boqLines.length} hạng mục · Tổng: <span className="font-bold text-orange-600">{fmtVND(totalBOQ)}</span></div>
-              <Link href={`/projects/${id}/boq`}
+              <Link href={`/boq?project=${id}`}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition">
-                <FileText className="w-3.5 h-3.5" /> Mở BOQ Editor
+                <FileText className="w-3.5 h-3.5" /> Mở BOQ
               </Link>
             </div>
             {boqLines.length === 0 ? (
               <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
                 <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 mb-4">Chưa có dự toán BOQ cho dự án này</p>
-                <Link href={`/projects/${id}/boq`} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600">
+                <Link href={`/boq?project=${id}`} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600">
                   <Plus className="w-4 h-4" /> Bắt đầu bóc tách BOQ
                 </Link>
               </div>

@@ -66,10 +66,10 @@ export const MOCK_USERS: (AuthUser & { password: string })[] = [
 // ── Nav permissions per role ──────────────────────────────────────────────────
 
 export const ROLE_NAV_PERMISSIONS: Record<UserRole, string[]> = {
-  admin:      ["/", "/pipeline", "/leads", "/projects", "/boq", "/contractors", "/materials", "/vo", "/payment", "/qa", "/files", "/documents", "/drawings", "/reports", "/settings"],
-  pm:         ["/", "/pipeline", "/projects", "/boq", "/contractors", "/materials", "/vo", "/payment", "/qa", "/files", "/documents", "/drawings", "/reports"],
+  admin:      ["/", "/pipeline", "/boq", "/leads", "/projects", "/contractors", "/materials", "/vo", "/payment", "/qa", "/files", "/documents", "/drawings", "/reports", "/settings"],
+  pm:         ["/", "/pipeline", "/boq", "/projects", "/contractors", "/materials", "/vo", "/payment", "/qa", "/files", "/documents", "/drawings", "/reports"],
   sales:      ["/", "/pipeline", "/leads", "/projects", "/files", "/documents"],
-  qs:         ["/", "/boq", "/projects", "/contractors", "/vo", "/files", "/drawings", "/documents"],
+  qs:         ["/", "/boq", "/pipeline", "/projects", "/contractors", "/vo", "/files", "/drawings", "/documents"],
   purchasing: ["/", "/materials", "/contractors", "/files", "/documents"],
   accountant: ["/", "/payment", "/reports", "/files", "/documents"],
   site:       ["/", "/projects", "/vo", "/qa", "/files", "/drawings"],

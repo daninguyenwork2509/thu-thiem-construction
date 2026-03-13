@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  LayoutDashboard, FolderKanban, Users, AlertCircle,
+  LayoutDashboard, AlertCircle,
   Wallet, BarChart3, Settings, Smartphone, ExternalLink,
   HardHat, Package, LogOut, ChevronRight, Kanban, FolderOpen, ClipboardCheck
 } from "lucide-react"
@@ -20,10 +20,8 @@ const NAV_GROUPS = [
   {
     label: "Quản lý dự án",
     items: [
-      { href: "/pipeline", label: "Pipeline",       icon: Kanban },
-      { href: "/leads",    label: "CRM / Lead",     icon: Users },
-      { href: "/projects", label: "Dự án",           icon: FolderKanban },
-      { href: "/qa",       label: "QA & Nghiệm thu", icon: ClipboardCheck },
+      { href: "/pipeline", label: "Dự án & Pipeline", icon: Kanban },
+      { href: "/qa",       label: "QA & Nghiệm thu",  icon: ClipboardCheck },
     ],
   },
   {

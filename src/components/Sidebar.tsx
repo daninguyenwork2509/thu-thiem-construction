@@ -2,42 +2,61 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  LayoutDashboard, FolderKanban, FileText, Users,
-  AlertCircle, Wallet, BarChart3, Settings,
-  Smartphone, ExternalLink, HardHat, Package, LogOut,
-  ClipboardCheck, FolderOpen, Layers, ChevronRight, Kanban
+  LayoutDashboard, FolderKanban, Users, AlertCircle,
+  Wallet, BarChart3, Settings, Smartphone, ExternalLink,
+  HardHat, Package, LogOut, ChevronRight, Kanban
 } from "lucide-react"
 import { useAuth, ROLE_COLORS } from "@/lib/auth-store"
 
-const ALL_NAV = [
-  { href: "/",            label: "Dashboard",       icon: LayoutDashboard },
-  { href: "/pipeline",    label: "Pipeline",         icon: Kanban },
-  { href: "/leads",       label: "CRM / Lead",      icon: Users },
-  { href: "/projects",    label: "Dự án",            icon: FolderKanban },
-  { href: "/boq",         label: "Dự toán BOQ",      icon: FileText },
-  { href: "/contractors", label: "Nhà thầu",         icon: HardHat },
-  { href: "/materials",   label: "Vật tư",           icon: Package },
-  { href: "/vo",          label: "Phát sinh (VO)",   icon: AlertCircle },
-  { href: "/payment",     label: "Dòng tiền",        icon: Wallet },
-  { href: "/qa",          label: "QA / Nghiệm thu",  icon: ClipboardCheck },
-  { href: "/documents",   label: "Tài liệu",         icon: FolderOpen },
-  { href: "/drawings",    label: "Bản vẽ",           icon: Layers },
-  { href: "/reports",     label: "Báo cáo",          icon: BarChart3 },
-  { href: "/settings",    label: "Cài đặt",          icon: Settings },
+// ── Nav groups ────────────────────────────────────────────────────────────────
+const NAV_GROUPS = [
+  {
+    label: null, // no section header for top items
+    items: [
+      { href: "/",         label: "Dashboard", icon: LayoutDashboard },
+      { href: "/pipeline", label: "Pipeline",  icon: Kanban },
+    ],
+  },
+  {
+    label: "Quản lý dự án",
+    items: [
+      { href: "/leads",    label: "CRM / Lead",       icon: Users },
+      { href: "/projects", label: "Dự án",             icon: FolderKanban },
+      { href: "/vo",       label: "Phát sinh (VO)",    icon: AlertCircle },
+    ],
+  },
+  {
+    label: "Mua sắm & Thi công",
+    items: [
+      { href: "/contractors", label: "Nhà thầu", icon: HardHat },
+      { href: "/materials",   label: "Vật tư",   icon: Package },
+    ],
+  },
+  {
+    label: "Tài chính",
+    items: [
+      { href: "/payment", label: "Dòng tiền", icon: Wallet },
+      { href: "/reports", label: "Báo cáo",   icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Hệ thống",
+    items: [
+      { href: "/settings", label: "Cài đặt", icon: Settings },
+    ],
+  },
 ]
 
 export default function Sidebar() {
-  const path    = usePathname()
-  const router  = useRouter()
+  const path   = usePathname()
+  const router = useRouter()
   const { state, can, logout } = useAuth()
-  const user    = state.user
+  const user   = state.user
 
-  const visibleNav = ALL_NAV.filter(({ href }) => can(href))
+  const handleLogout = () => { logout(); router.push("/login") }
 
-  const handleLogout = () => {
-    logout()
-    router.push("/login")
-  }
+  const isActive = (href: string) =>
+    href === "/" ? path === "/" : path.startsWith(href)
 
   return (
     <aside className="w-60 bg-white flex flex-col shrink-0 border-r border-gray-200">
@@ -56,47 +75,63 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {visibleNav.map(({ href, label, icon: Icon }) => {
-          const active = path === href || (href !== "/" && path.startsWith(href))
+      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+        {NAV_GROUPS.map((group, gi) => {
+          const visibleItems = group.items.filter(({ href }) => can(href))
+          if (visibleItems.length === 0) return null
+
           return (
-            <Link key={href} href={href}
-              className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                active
-                  ? "bg-orange-50 text-orange-600"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}>
-              <Icon className={`w-4 h-4 shrink-0 transition-colors ${
-                active ? "text-orange-500" : "text-gray-400 group-hover:text-gray-600"
-              }`} />
-              <span className="flex-1 truncate">{label}</span>
-              {active && <ChevronRight className="w-3 h-3 text-orange-400 shrink-0" />}
-            </Link>
+            <div key={gi} className={gi > 0 ? "mt-3" : ""}>
+              {/* Section header */}
+              {group.label && (
+                <div className="px-3 pb-1 pt-1 text-[10px] text-gray-400 uppercase tracking-widest font-semibold">
+                  {group.label}
+                </div>
+              )}
+
+              {/* Items */}
+              <div className="space-y-0.5">
+                {visibleItems.map(({ href, label, icon: Icon }) => {
+                  const active = isActive(href)
+                  return (
+                    <Link key={href} href={href}
+                      className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        active
+                          ? "bg-orange-50 text-orange-600"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}>
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${
+                        active ? "text-orange-500" : "text-gray-400 group-hover:text-gray-600"
+                      }`} />
+                      <span className="flex-1 truncate">{label}</span>
+                      {active && <ChevronRight className="w-3 h-3 text-orange-400 shrink-0" />}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
           )
         })}
 
         {/* Demo links */}
-        <div className="pt-3 mt-2 border-t border-gray-100">
-          <div className="px-3 pb-1.5 text-[10px] text-gray-400 uppercase tracking-widest font-semibold">
+        <div className="mt-4 pt-3 border-t border-gray-100">
+          <div className="px-3 pb-1 text-[10px] text-gray-400 uppercase tracking-widest font-semibold">
             Demo
           </div>
+          <div className="space-y-0.5">
+            {[
+              { href: "/site",                    label: "Site Manager App",    icon: Smartphone },
+              { href: "/guest/vo/abc123demo",      label: "Guest VO (KH)",       icon: ExternalLink },
+              { href: "/guest/project/proj-abc123",label: "Guest Tiến độ (KH)",  icon: ExternalLink },
+            ].map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href}
+                className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all">
+                <Icon className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-gray-600" />
+                {label}
+              </Link>
+            ))}
+          </div>
         </div>
-
-        <Link href="/site"
-          className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all">
-          <Smartphone className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-gray-600" />
-          Site Manager App
-        </Link>
-        <Link href="/guest/vo/abc123demo"
-          className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all">
-          <ExternalLink className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-gray-600" />
-          Guest VO (KH)
-        </Link>
-        <Link href="/guest/project/proj-abc123"
-          className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all">
-          <ExternalLink className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-gray-600" />
-          Guest Tiến độ (KH)
-        </Link>
       </nav>
 
       {/* User section */}

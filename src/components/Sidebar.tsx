@@ -5,12 +5,13 @@ import {
   LayoutDashboard, FolderKanban, FileText, Users,
   AlertCircle, Wallet, BarChart3, Settings,
   Smartphone, ExternalLink, HardHat, Package, LogOut,
-  ClipboardCheck, FolderOpen, Layers, ChevronRight
+  ClipboardCheck, FolderOpen, Layers, ChevronRight, Kanban
 } from "lucide-react"
 import { useAuth, ROLE_COLORS } from "@/lib/auth-store"
 
 const ALL_NAV = [
   { href: "/",            label: "Dashboard",       icon: LayoutDashboard },
+  { href: "/pipeline",    label: "Pipeline",         icon: Kanban },
   { href: "/leads",       label: "CRM / Lead",      icon: Users },
   { href: "/projects",    label: "Dự án",            icon: FolderKanban },
   { href: "/boq",         label: "Dự toán BOQ",      icon: FileText },

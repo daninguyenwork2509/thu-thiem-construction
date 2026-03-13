@@ -66,9 +66,9 @@ export const MOCK_USERS: (AuthUser & { password: string })[] = [
 // ── Nav permissions per role ──────────────────────────────────────────────────
 
 export const ROLE_NAV_PERMISSIONS: Record<UserRole, string[]> = {
-  admin:      ["/", "/leads", "/projects", "/boq", "/contractors", "/materials", "/vo", "/payment", "/qa", "/documents", "/drawings", "/reports", "/settings"],
-  pm:         ["/", "/projects", "/boq", "/contractors", "/materials", "/vo", "/payment", "/qa", "/documents", "/drawings", "/reports"],
-  sales:      ["/", "/leads", "/projects", "/documents"],
+  admin:      ["/", "/pipeline", "/leads", "/projects", "/boq", "/contractors", "/materials", "/vo", "/payment", "/qa", "/documents", "/drawings", "/reports", "/settings"],
+  pm:         ["/", "/pipeline", "/projects", "/boq", "/contractors", "/materials", "/vo", "/payment", "/qa", "/documents", "/drawings", "/reports"],
+  sales:      ["/", "/pipeline", "/leads", "/projects", "/documents"],
   qs:         ["/", "/boq", "/projects", "/contractors", "/vo", "/drawings", "/documents"],
   purchasing: ["/", "/materials", "/contractors", "/documents"],
   accountant: ["/", "/payment", "/reports", "/documents"],

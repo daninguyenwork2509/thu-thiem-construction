@@ -4,39 +4,41 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard, FolderKanban, Users, AlertCircle,
   Wallet, BarChart3, Settings, Smartphone, ExternalLink,
-  HardHat, Package, LogOut, ChevronRight, Kanban
+  HardHat, Package, LogOut, ChevronRight, Kanban, FolderOpen, ClipboardCheck
 } from "lucide-react"
 import { useAuth, ROLE_COLORS } from "@/lib/auth-store"
 
 // ── Nav groups ────────────────────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
-    label: null, // no section header for top items
+    label: "Tổng quan",
     items: [
-      { href: "/",         label: "Dashboard", icon: LayoutDashboard },
-      { href: "/pipeline", label: "Pipeline",  icon: Kanban },
+      { href: "/",        label: "Dashboard", icon: LayoutDashboard },
+      { href: "/reports", label: "Báo cáo",   icon: BarChart3 },
     ],
   },
   {
     label: "Quản lý dự án",
     items: [
-      { href: "/leads",    label: "CRM / Lead",       icon: Users },
-      { href: "/projects", label: "Dự án",             icon: FolderKanban },
-      { href: "/vo",       label: "Phát sinh (VO)",    icon: AlertCircle },
+      { href: "/pipeline", label: "Pipeline",       icon: Kanban },
+      { href: "/leads",    label: "CRM / Lead",     icon: Users },
+      { href: "/projects", label: "Dự án",           icon: FolderKanban },
+      { href: "/qa",       label: "QA & Nghiệm thu", icon: ClipboardCheck },
     ],
   },
   {
-    label: "Mua sắm & Thi công",
+    label: "Hồ sơ",
     items: [
-      { href: "/contractors", label: "Nhà thầu", icon: HardHat },
-      { href: "/materials",   label: "Vật tư",   icon: Package },
+      { href: "/files", label: "Tài liệu & Bản vẽ", icon: FolderOpen },
     ],
   },
   {
-    label: "Tài chính",
+    label: "Tài chính & Mua sắm",
     items: [
-      { href: "/payment", label: "Dòng tiền", icon: Wallet },
-      { href: "/reports", label: "Báo cáo",   icon: BarChart3 },
+      { href: "/payment",      label: "Dòng tiền",      icon: Wallet },
+      { href: "/vo",           label: "Phát sinh (VO)", icon: AlertCircle },
+      { href: "/contractors",  label: "Nhà thầu",       icon: HardHat },
+      { href: "/materials",    label: "Vật tư",         icon: Package },
     ],
   },
   {

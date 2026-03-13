@@ -3,7 +3,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard, AlertCircle,
-  Wallet, BarChart3, Settings, Smartphone, ExternalLink,
+  Wallet, Settings, Smartphone, ExternalLink,
   HardHat, Package, LogOut, ChevronRight, Kanban, FolderOpen, ClipboardCheck
 } from "lucide-react"
 import { useAuth, ROLE_COLORS } from "@/lib/auth-store"
@@ -13,8 +13,7 @@ const NAV_GROUPS = [
   {
     label: "Tổng quan",
     items: [
-      { href: "/",        label: "Dashboard", icon: LayoutDashboard },
-      { href: "/reports", label: "Báo cáo",   icon: BarChart3 },
+      { href: "/", label: "Dashboard & Báo cáo", icon: LayoutDashboard },
     ],
   },
   {

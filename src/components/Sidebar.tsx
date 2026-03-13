@@ -20,7 +20,7 @@ const NAV_GROUPS = [
   {
     label: "Quản lý dự án",
     items: [
-      { href: "/pipeline", label: "Dự án & Pipeline", icon: Kanban },
+      { href: "/pipeline", label: "Quản lý dự án",    icon: Kanban },
       { href: "/qa",       label: "QA & Nghiệm thu",  icon: ClipboardCheck },
     ],
   },

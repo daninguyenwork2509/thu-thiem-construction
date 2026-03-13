@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Bell, Search, ChevronDown, LogOut, User, Settings, X, CheckCheck } from "lucide-react"
 import { useAuth, ROLE_COLORS } from "@/lib/auth-store"
@@ -13,55 +13,81 @@ const MOCK_NOTIFICATIONS = [
   { id: 5, type: "info", title: "Lead mới", body: "Khách hàng Trần Thị C — biệt thự Thủ Đức 2.5 tỷ", time: "2 ngày trước", read: true, href: "/leads" },
 ]
 
-const notifTypeIcon: Record<string, string> = {
-  warning: "🔶",
-  info: "🔵",
-  success: "✅",
-  error: "🔴",
+const notifIcon: Record<string, string> = { warning: "🔶", info: "🔵", success: "✅", error: "🔴" }
+
+// Page title map
+const PAGE_TITLES: Record<string, string> = {
+  "/":             "Dashboard",
+  "/leads":        "CRM / Lead",
+  "/projects":     "Dự án",
+  "/boq":          "Dự toán BOQ",
+  "/contractors":  "Nhà thầu",
+  "/materials":    "Vật tư",
+  "/vo":           "Phát sinh (VO)",
+  "/payment":      "Dòng tiền",
+  "/qa":           "QA / Nghiệm thu",
+  "/documents":    "Tài liệu",
+  "/drawings":     "Bản vẽ",
+  "/reports":      "Báo cáo",
+  "/settings":     "Cài đặt",
+  "/notifications":"Thông báo",
 }
 
 export default function TopBar() {
   const { state, logout } = useAuth()
-  const router = useRouter()
+  const router   = useRouter()
+  const pathname = usePathname()
   const [showNotif, setShowNotif] = useState(false)
-  const [showUser, setShowUser] = useState(false)
-  const [notifs, setNotifs] = useState(MOCK_NOTIFICATIONS)
+  const [showUser,  setShowUser]  = useState(false)
+  const [notifs,    setNotifs]    = useState(MOCK_NOTIFICATIONS)
 
   const unread = notifs.filter(n => !n.read).length
-  const user = state.user
+  const user   = state.user
+
+  // Resolve page title
+  const pageTitle = Object.entries(PAGE_TITLES)
+    .sort((a, b) => b[0].length - a[0].length)
+    .find(([key]) => key === "/" ? pathname === "/" : pathname.startsWith(key))?.[1] ?? ""
 
   const markAll = () => setNotifs(n => n.map(x => ({ ...x, read: true })))
   const markOne = (id: number) => setNotifs(n => n.map(x => x.id === id ? { ...x, read: true } : x))
-
-  const handleLogout = () => {
-    logout()
-    router.push("/login")
-  }
+  const handleLogout = () => { logout(); router.push("/login") }
 
   if (!user) return null
 
   return (
-    <header className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 shrink-0 z-20">
+    <header className="h-14 bg-white border-b border-gray-200 flex items-center px-5 gap-4 shrink-0 z-20">
+      {/* Page title */}
+      {pageTitle && (
+        <div className="hidden md:block shrink-0">
+          <h1 className="text-sm font-semibold text-gray-900">{pageTitle}</h1>
+        </div>
+      )}
+
+      {/* Divider */}
+      {pageTitle && <div className="hidden md:block h-4 w-px bg-gray-200 shrink-0" />}
+
       {/* Search */}
-      <div className="flex-1 max-w-sm">
+      <div className="flex-1 max-w-md">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input
-            type="text" placeholder="Tìm kiếm dự án, VO, khách hàng..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400 transition"
+            type="text"
+            placeholder="Tìm kiếm dự án, VO, khách hàng..."
+            className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400 placeholder:text-gray-400 transition"
           />
         </div>
       </div>
 
-      <div className="flex items-center gap-1 ml-auto">
+      <div className="flex items-center gap-1 ml-auto shrink-0">
         {/* Notifications */}
         <div className="relative">
           <button
             onClick={() => { setShowNotif(!showNotif); setShowUser(false) }}
-            className="relative w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition text-gray-500 hover:text-gray-800">
-            <Bell className="w-4 h-4" />
+            className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition text-gray-500 hover:text-gray-800">
+            <Bell className="w-4.5 h-4.5" />
             {unread > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
                 {unread}
               </span>
             )}
@@ -70,47 +96,41 @@ export default function TopBar() {
           {showNotif && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowNotif(false)} />
-              <div className="absolute right-0 top-10 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-40 overflow-hidden">
+              <div className="absolute right-0 top-11 w-80 bg-white rounded-xl shadow-xl shadow-gray-200/80 border border-gray-100 z-40 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-gray-900">Thông báo</span>
-                    {unread > 0 && (
-                      <span className="bg-red-100 text-red-600 text-xs font-bold px-1.5 py-0.5 rounded-full">{unread}</span>
-                    )}
+                    {unread > 0 && <span className="bg-red-100 text-red-600 text-xs font-bold px-1.5 py-0.5 rounded-full">{unread}</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     {unread > 0 && (
-                      <button onClick={markAll} className="text-xs text-orange-600 hover:text-orange-800 flex items-center gap-1">
-                        <CheckCheck className="w-3 h-3" />Đánh dấu đã đọc
+                      <button onClick={markAll} className="text-xs text-orange-500 hover:text-orange-700 flex items-center gap-1 font-medium">
+                        <CheckCheck className="w-3 h-3" /> Đọc hết
                       </button>
                     )}
-                    <button onClick={() => setShowNotif(false)} className="text-gray-400 hover:text-gray-600">
-                      <X className="w-4 h-4" />
+                    <button onClick={() => setShowNotif(false)} className="text-gray-400 hover:text-gray-600 p-0.5 rounded">
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-
-                <div className="max-h-80 overflow-y-auto">
-                  {notifs.length === 0 ? (
-                    <div className="py-8 text-center text-gray-400 text-sm">Không có thông báo</div>
-                  ) : notifs.map(n => (
+                <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                  {notifs.map(n => (
                     <Link key={n.id} href={n.href}
                       onClick={() => { markOne(n.id); setShowNotif(false) }}
-                      className={`flex gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer ${n.read ? "opacity-60" : ""}`}>
-                      <span className="text-base shrink-0 mt-0.5">{notifTypeIcon[n.type]}</span>
-                      <div className="min-w-0">
-                        <div className={`text-sm font-medium text-gray-900 ${!n.read ? "font-semibold" : ""}`}>{n.title}</div>
-                        <div className="text-xs text-gray-500 truncate">{n.body}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{n.time}</div>
+                      className={`flex gap-3 px-4 py-3 hover:bg-gray-50/80 transition cursor-pointer ${n.read ? "opacity-50" : ""}`}>
+                      <span className="text-base shrink-0 mt-0.5">{notifIcon[n.type]}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-sm text-gray-900 ${!n.read ? "font-semibold" : "font-medium"}`}>{n.title}</div>
+                        <div className="text-xs text-gray-500 mt-0.5 truncate">{n.body}</div>
+                        <div className="text-xs text-gray-400 mt-1">{n.time}</div>
                       </div>
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />}
+                      {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0 mt-2" />}
                     </Link>
                   ))}
                 </div>
-
                 <Link href="/notifications" onClick={() => setShowNotif(false)}
-                  className="block text-center py-2.5 text-xs font-medium text-orange-600 hover:bg-orange-50 transition">
-                  Xem tất cả thông báo
+                  className="block text-center py-2.5 text-xs font-semibold text-orange-500 hover:text-orange-700 hover:bg-orange-50/50 transition border-t border-gray-100">
+                  Xem tất cả thông báo →
                 </Link>
               </div>
             </>
@@ -121,47 +141,43 @@ export default function TopBar() {
         <div className="relative">
           <button
             onClick={() => { setShowUser(!showUser); setShowNotif(false) }}
-            className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition">
+            className="flex items-center gap-2 pl-1 pr-2 py-1.5 rounded-lg hover:bg-gray-100 transition">
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-              style={{ backgroundColor: "#E87625" }}>
+              style={{ background: "linear-gradient(135deg, #E87625 0%, #C9651A 100%)" }}>
               {user.avatarInitials}
             </div>
             <div className="hidden sm:block text-left">
               <div className="text-xs font-semibold text-gray-800 leading-none">{user.fullName}</div>
-              <div className="text-[10px] text-gray-500 leading-none mt-0.5">{user.roleLabel}</div>
+              <div className="text-[10px] text-gray-400 leading-none mt-0.5">{user.roleLabel}</div>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+            <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showUser ? "rotate-180" : ""}`} />
           </button>
 
           {showUser && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowUser(false)} />
-              <div className="absolute right-0 top-10 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-40 overflow-hidden">
-                {/* User info header */}
-                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="absolute right-0 top-11 w-56 bg-white rounded-xl shadow-xl shadow-gray-200/80 border border-gray-100 z-40 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-b from-gray-50 to-white">
                   <div className="font-semibold text-sm text-gray-900">{user.fullName}</div>
-                  <div className="text-xs text-gray-500">{user.email}</div>
-                  <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[user.role]}`}>
+                  <div className="text-xs text-gray-400 mt-0.5">{user.email}</div>
+                  <span className={`inline-block mt-2 px-2 py-0.5 rounded-md text-xs font-semibold ${ROLE_COLORS[user.role]}`}>
                     {user.roleLabel}
                   </span>
                 </div>
-
-                {/* Menu items */}
                 <div className="py-1">
                   <Link href="/settings/profile" onClick={() => setShowUser(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
-                    <User className="w-4 h-4 text-gray-400" />Hồ sơ cá nhân
+                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition">
+                    <User className="w-4 h-4 text-gray-400" /> Hồ sơ cá nhân
                   </Link>
                   <Link href="/settings" onClick={() => setShowUser(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
-                    <Settings className="w-4 h-4 text-gray-400" />Cài đặt
+                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition">
+                    <Settings className="w-4 h-4 text-gray-400" /> Cài đặt
                   </Link>
                 </div>
-
                 <div className="border-t border-gray-100 py-1">
                   <button onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition">
-                    <LogOut className="w-4 h-4" />Đăng xuất
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-700 transition">
+                    <LogOut className="w-4 h-4" /> Đăng xuất
                   </button>
                 </div>
               </div>

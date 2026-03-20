@@ -6,15 +6,11 @@ import { SUBCONTRACTORS } from "@/lib/subcontractor-data"
 const fmtVND = (n: number) => n.toLocaleString("vi-VN") + " ₫"
 
 const ALLOCATIONS = [
-  { id: 1, contractorId: 1, projectCode: "PRJ-2025-0001", projectName: "Căn hộ Mỹ Khánh – Phú Mỹ Hưng",    scope: "Phần thô & Xây tô toàn bộ",                   contractValue: 95_000_000,  progress: 65,  status: "in_progress" },
-  { id: 2, contractorId: 1, projectCode: "PRJ-2024-0015", projectName: "Biệt thự Sông Long – Thủ Đức",       scope: "Phần thô + bê tông nền",                       contractValue: 320_000_000, progress: 100, status: "completed"   },
-  { id: 3, contractorId: 2, projectCode: "PRJ-2025-0001", projectName: "Căn hộ Mỹ Khánh – Phú Mỹ Hưng",    scope: "Toàn bộ M&E Điện",                             contractValue: 135_000_000, progress: 45,  status: "in_progress" },
-  { id: 4, contractorId: 2, projectCode: "PRJ-2025-0002", projectName: "Văn phòng Landmark 81 – Tầng 22",   scope: "Hệ thống điện và điều hòa tổng thể",            contractValue: 280_000_000, progress: 10,  status: "in_progress" },
-  { id: 5, contractorId: 3, projectCode: "PRJ-2025-0001", projectName: "Căn hộ Mỹ Khánh – Phú Mỹ Hưng",    scope: "Tủ bếp Acrylic + Sàn gỗ + Tủ đầu giường",     contractValue: 185_000_000, progress: 0,   status: "pending"     },
-  { id: 6, contractorId: 4, projectCode: "PRJ-2025-0001", projectName: "Căn hộ Mỹ Khánh – Phú Mỹ Hưng",    scope: "Sơn nước + Trát tường toàn căn",               contractValue: 42_000_000,  progress: 30,  status: "in_progress" },
-  { id: 7, contractorId: 4, projectCode: "PRJ-2024-0015", projectName: "Biệt thự Sông Long – Thủ Đức",       scope: "Sơn nước nội thất 3 tầng",                     contractValue: 95_000_000,  progress: 100, status: "completed"   },
-  { id: 8, contractorId: 5, projectCode: "PRJ-2025-0001", projectName: "Căn hộ Mỹ Khánh – Phú Mỹ Hưng",    scope: "Ốp lát gạch toilet chính & phụ",               contractValue: 35_500_000,  progress: 50,  status: "in_progress" },
-  { id: 9, contractorId: 7, projectCode: "PRJ-2024-0015", projectName: "Biệt thự Sông Long – Thủ Đức",       scope: "Điều hòa trung tâm 3 tầng",                    contractValue: 210_000_000, progress: 100, status: "completed"   },
+  { id: 1, contractorId: 1, projectCode: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – T12", scope: "Phần thô & Xây tô toàn bộ",               contractValue: 95_000_000,  progress: 80, status: "in_progress" },
+  { id: 3, contractorId: 2, projectCode: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – T12", scope: "Toàn bộ M&E Điện",                         contractValue: 135_000_000, progress: 40, status: "in_progress" },
+  { id: 5, contractorId: 3, projectCode: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – T12", scope: "Tủ bếp Acrylic + Sàn gỗ + Tủ đầu giường", contractValue: 185_000_000, progress: 10, status: "in_progress" },
+  { id: 6, contractorId: 4, projectCode: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – T12", scope: "Sơn nước + Trát tường toàn căn",           contractValue: 42_000_000,  progress: 20, status: "in_progress" },
+  { id: 8, contractorId: 5, projectCode: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – T12", scope: "Ốp lát gạch toilet chính & phụ",           contractValue: 35_500_000,  progress: 40, status: "in_progress" },
 ]
 
 const SCOPE_MATERIALS: Record<number, { name: string; qty: number; unit: string; unitPrice: number }[]> = {

@@ -1,7 +1,6 @@
 "use client"
 import { useAuth } from "@/lib/auth-store"
-import { fmtVND } from "@/lib/mock-data"
-import { PIPELINE_ITEMS, PIPELINE_VOS } from "@/lib/project-data"
+import { PIPELINE_ITEMS, PIPELINE_VOS, fmtVND } from "@/lib/project-data"
 import {
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock,
   FolderKanban, AlertCircle, Wallet, Plus, FileText,
@@ -10,7 +9,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-// ── Sample data ───────────────────────────────────────────────────────────────
+// ── Historical revenue (không liên quan project-specific, giữ nguyên) ─────────
 const MONTHLY = [
   { month: "T8/25",  revenue: 1200, cost: 900  },
   { month: "T9/25",  revenue: 1500, cost: 1100 },
@@ -22,54 +21,34 @@ const MONTHLY = [
   { month: "T3/26",  revenue: 2450, cost: 1800 },
 ]
 
-const DEBT_LIST = [
-  { project: "Biệt thự Q.9",        customer: "Nguyễn Văn A", amount: 450_000_000, dueDate: "15/02/2026", overdueDays: 25, status: "overdue" },
-  { project: "Căn hộ Vinhomes",     customer: "Trần Thị B",   amount: 280_000_000, dueDate: "05/03/2026", overdueDays: 7,  status: "overdue" },
-  { project: "Văn phòng Q.1",       customer: "Lê Văn C",     amount: 620_000_000, dueDate: "20/03/2026", overdueDays: 0,  status: "upcoming" },
-  { project: "Nhà phố Bình Thạnh",  customer: "Phạm Thị D",   amount: 180_000_000, dueDate: "01/04/2026", overdueDays: 0,  status: "upcoming" },
-  { project: "Showroom Thủ Đức",    customer: "Hoàng Văn E",  amount: 95_000_000,  dueDate: "10/01/2026", overdueDays: 61, status: "critical" },
+// ── Data từ 3 dự án thực tế ───────────────────────────────────────────────────
+
+// Công nợ: 2 đợt chưa thu của PRJ-2025-001
+type DebtStatus = "upcoming" | "overdue" | "critical"
+const DEBT_LIST: { project: string; customer: string; amount: number; dueDate: string; overdueDays: number; status: DebtStatus }[] = [
+  { project: "Vinhomes Central Park – T12", customer: "Chị Lan Anh", amount: 164_000_000, dueDate: "15/04/2026", overdueDays: 0, status: "upcoming" },
+  { project: "Vinhomes Central Park – T12", customer: "Chị Lan Anh", amount: 164_000_000, dueDate: "31/05/2026", overdueDays: 0, status: "upcoming" },
 ]
 
-const PROJECT_STATUS = [
-  { label: "Đúng tiến độ",  count: 4, pct: 57, color: "bg-green-500",  text: "text-green-600",  badge: "bg-green-100 text-green-700" },
-  { label: "Vượt ngân sách",count: 1, pct: 14, color: "bg-orange-500", text: "text-orange-600", badge: "bg-orange-100 text-orange-700" },
-  { label: "Chậm tiến độ",  count: 2, pct: 29, color: "bg-red-500",    text: "text-red-600",    badge: "bg-red-100 text-red-700" },
-]
-
-const TOP_PROJECTS = [
-  { name: "Villa Thảo Điền – Q.2",       code: "PRJ-2025-004", pm: "Lê Minh Tuấn",  budget: 3_500_000_000, spent: 1_120_000_000, progress: 32, status: "delayed",     paid: 45 },
-  { name: "Nhà phố Bình Thạnh – Q.BT",   code: "PRJ-2025-005", pm: "Trần Thị Bình", budget: 1_800_000_000, spent: 1_278_000_000, progress: 71, status: "on-track",    paid: 70 },
-  { name: "Căn hộ Mỹ Khánh – PMH",       code: "PRJ-2025-001", pm: "Trần Thị Bình", budget: 820_000_000,   spent: 393_600_000,   progress: 48, status: "on-track",    paid: 50 },
-  { name: "Văn phòng Landmark 81",        code: "PRJ-2026-002", pm: "Lê Minh Tuấn",  budget: 1_500_000_000, spent: 75_000_000,    progress: 5,  status: "on-track",    paid: 10 },
-  { name: "Shophouse Ecopark – HY",       code: "PRJ-2025-007", pm: "Hoàng Lan Anh", budget: 2_100_000_000, spent: 1_953_000_000, progress: 93, status: "over-budget", paid: 85 },
-]
-
-const LEAD_FUNNEL = [
-  { stage: "Khách hàng tiếp cận", count: 24, value: 38_400_000_000, color: "bg-blue-500",   w: "w-full" },
-  { stage: "Thiết kế & Dự toán",  count: 12, value: 24_200_000_000, color: "bg-purple-500", w: "w-5/6" },
-  { stage: "Chốt hợp đồng",       count: 7,  value: 15_800_000_000, color: "bg-amber-500",  w: "w-4/6" },
-  { stage: "Đang thi công",       count: 7,  value: 12_100_000_000, color: "bg-orange-500", w: "w-3/6" },
-  { stage: "Thanh toán & B/G",    count: 4,  value: 6_400_000_000,  color: "bg-green-500",  w: "w-2/6" },
-]
-
+// Nhà thầu: thực tế từ PRJ-2025-001
 const CONTRACTOR_PERF = [
-  { name: "Cty XD Tiến Phát",    type: "Nhà thầu xây dựng", projects: 3, rating: 92, onTime: true  },
-  { name: "Cty Điện Quang Minh", type: "Điện – Cơ điện",    projects: 5, rating: 88, onTime: true  },
-  { name: "Nội thất Á Đông",     type: "Nội thất",           projects: 2, rating: 75, onTime: false },
-  { name: "Cty Nước Phú Hưng",   type: "Cơ điện lạnh",      projects: 4, rating: 95, onTime: true  },
+  { name: "Đội thợ Minh Phúc",     type: "Phần thô",   projects: 1, rating: 90, onTime: true  },
+  { name: "Cty Điện Hoàng Long",   type: "Điện – M&E", projects: 1, rating: 85, onTime: true  },
+  { name: "Đội Nội Thất An Khang", type: "Nội thất",   projects: 1, rating: 65, onTime: false },
 ]
 
+// Hoạt động gần đây: từ 3 dự án thực
 const ACTIVITIES = [
-  { icon: "✅", text: "Mốc thanh toán T3 — Villa Thảo Điền đã được duyệt",        time: "2 giờ trước",   type: "success" },
-  { icon: "📋", text: "VO #007 gửi KH xác nhận — thêm phòng họp Landmark 81",    time: "4 giờ trước",   type: "info" },
-  { icon: "⚠️", text: "Công nợ Showroom Thủ Đức quá hạn 61 ngày — cần xử lý",   time: "Hôm qua",       type: "warning" },
-  { icon: "👤", text: "Lead mới: Nguyễn Minh Khoa — Nhà phố Q.7 ~2.8 tỷ",        time: "Hôm qua",       type: "lead" },
-  { icon: "🏗️", text: "Cập nhật tiến độ: Shophouse Ecopark đạt 93% — sắp bàn giao", time: "2 ngày trước", type: "update" },
-  { icon: "📦", text: "Đơn hàng vật tư Cty Thép Miền Nam — 185 tấn thép D12",     time: "2 ngày trước",  type: "purchase" },
-  { icon: "🔍", text: "QA checklist tầng 8 — Căn hộ Mỹ Khánh: 18/20 hạng mục OK", time: "3 ngày trước", type: "qa" },
-  { icon: "💰", text: "Thu tiền đợt 4/5 — Shophouse Ecopark: 420 triệu",          time: "4 ngày trước",  type: "payment" },
+  { icon: "⚠️", text: "Nội thất An Khang trễ 5 ngày – PRJ-2025-001, cần đốc thúc ngay",   time: "Hôm nay",      type: "warning" },
+  { icon: "📋", text: "VO-001: Bổ sung điểm điện phòng làm việc – đang chờ KH xác nhận",   time: "2 giờ trước",  type: "info" },
+  { icon: "📋", text: "VO-002: Thay đổi vật liệu sàn phòng ngủ – đang chờ KH xác nhận",    time: "4 giờ trước",  type: "info" },
+  { icon: "🔍", text: "KS Nguyễn Thu Hà đang lên bản vẽ VP FPT – dự kiến gửi KH 30/03",   time: "Hôm qua",      type: "update" },
+  { icon: "💬", text: "Báo giá Ecopark đã gửi 18/03 – chưa có phản hồi từ Cty Đại Phát",  time: "2 ngày trước", type: "warning" },
+  { icon: "✅", text: "Đội Minh Phúc: phần thô đạt 80% – PRJ-2025-001 đúng kế hoạch",      time: "3 ngày trước", type: "success" },
+  { icon: "💰", text: "Thu đợt 2/4 – PRJ-2025-001: 164 triệu từ Chị Lan Anh",              time: "4 ngày trước", type: "payment" },
 ]
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function greeting() {
   const h = new Date().getHours()
   if (h < 12) return "Chào buổi sáng"; if (h < 18) return "Chào buổi chiều"; return "Chào buổi tối"
@@ -87,18 +66,62 @@ export default function Dashboard() {
   const { state } = useAuth()
   const firstName = state.user?.fullName?.split(" ").pop() ?? "bạn"
 
-  const projects       = PIPELINE_ITEMS.filter(p => p.type === "project")
-  const totalContracts = projects.filter(p => ["construction","payment","handover"].includes(p.stage)).reduce((s, p) => s + p.value, 0)
-  const totalPaid      = projects.reduce((s, p) => s + (p.totalPaid ?? 0), 0)
-  const totalDebt      = projects.reduce((s, p) => s + (p.totalDebt ?? 0), 0)
-  const pendingVOs     = PIPELINE_VOS.filter(v => v.status === "pending").length
-  const upcomingMilestones = 2 // Đợt 3 + Đợt 4 của PRJ-2025-001 chưa thu
-  const totalRevenue   = MONTHLY.reduce((s, r) => s + r.revenue, 0) * 1_000_000
-  const totalCost      = MONTHLY.reduce((s, r) => s + r.cost, 0) * 1_000_000
-  const grossProfit    = totalRevenue - totalCost
-  const margin         = ((grossProfit / totalRevenue) * 100).toFixed(1)
-  const overdueDebt    = DEBT_LIST.filter(d => d.status !== "upcoming").reduce((s, d) => s + d.amount, 0)
-  const maxRev         = Math.max(...MONTHLY.map(r => r.revenue))
+  // ── KPIs từ 3 dự án thực ─────────────────────────────────────────────────
+  const signedProjects  = PIPELINE_ITEMS.filter(p => ["construction","payment","handover"].includes(p.stage))
+  const totalContracts  = signedProjects.reduce((s, p) => s + p.value, 0)          // 820tr
+  const totalPaid       = PIPELINE_ITEMS.reduce((s, p) => s + (p.totalPaid ?? 0), 0) // 492tr
+  const totalDebt       = PIPELINE_ITEMS.reduce((s, p) => s + (p.totalDebt ?? 0), 0) // 328tr
+  const pendingVOs      = PIPELINE_VOS.filter(v => v.status === "pending").length    // 3
+  const upcomingMilestones = DEBT_LIST.length                                        // 2
+
+  // ── Chart ─────────────────────────────────────────────────────────────────
+  const totalRevenue = MONTHLY.reduce((s, r) => s + r.revenue, 0) * 1_000_000
+  const totalCost    = MONTHLY.reduce((s, r) => s + r.cost, 0) * 1_000_000
+  const grossProfit  = totalRevenue - totalCost
+  const margin       = ((grossProfit / totalRevenue) * 100).toFixed(1)
+  const maxRev       = Math.max(...MONTHLY.map(r => r.revenue))
+
+  // ── Dự án đang thực hiện (từ PIPELINE_ITEMS) ─────────────────────────────
+  const TOP_PROJECTS = PIPELINE_ITEMS.map(p => ({
+    name:     p.name,
+    code:     p.id,
+    pm:       p.pm ?? p.responsible,
+    budget:   p.value,
+    spent:    p.totalPaid ?? 0,
+    progress: p.progress ?? 0,
+    status:   p.tags?.some(t => t.toLowerCase().includes("trễ")) ? "delayed"
+            : "on-track",
+    paid: p.value > 0 ? Math.round(((p.totalPaid ?? 0) / p.value) * 100) : 0,
+  }))
+
+  // ── Tình trạng dự án (tính động) ─────────────────────────────────────────
+  const delayedCount  = PIPELINE_ITEMS.filter(p => p.tags?.some(t => t.toLowerCase().includes("trễ"))).length
+  const onTrackCount  = PIPELINE_ITEMS.length - delayedCount
+  const total         = PIPELINE_ITEMS.length
+  const PROJECT_STATUS = [
+    { label: "Đúng tiến độ",  count: onTrackCount, pct: Math.round(onTrackCount / total * 100),  color: "bg-green-500",  text: "text-green-600",  badge: "bg-green-100 text-green-700" },
+    { label: "Chậm tiến độ",  count: delayedCount,  pct: Math.round(delayedCount  / total * 100), color: "bg-red-500",    text: "text-red-600",    badge: "bg-red-100 text-red-700" },
+    { label: "Vượt ngân sách",count: 0,              pct: 0,                                       color: "bg-orange-500", text: "text-orange-600", badge: "bg-orange-100 text-orange-700" },
+  ]
+
+  // ── Phễu chuyển đổi (tính động từ PIPELINE_ITEMS) ────────────────────────
+  const funnelStages = [
+    { stage: "Khách hàng tiếp cận", key: ["lead"],                        color: "bg-blue-500"   },
+    { stage: "Thiết kế & Dự toán",  key: ["design"],                      color: "bg-purple-500" },
+    { stage: "Chốt hợp đồng",       key: ["contract"],                    color: "bg-amber-500"  },
+    { stage: "Đang thi công",        key: ["construction"],                color: "bg-orange-500" },
+    { stage: "Thanh toán & B/G",     key: ["payment", "handover"],         color: "bg-green-500"  },
+  ]
+  const maxFunnelCount = Math.max(1, ...funnelStages.map(f =>
+    PIPELINE_ITEMS.filter(p => (f.key as string[]).includes(p.stage)).length
+  ))
+  const LEAD_FUNNEL = funnelStages.map(f => {
+    const items  = PIPELINE_ITEMS.filter(p => (f.key as string[]).includes(p.stage))
+    const count  = items.length
+    const value  = items.reduce((s, p) => s + p.value, 0)
+    const widthPct = Math.round((count / maxFunnelCount) * 100)
+    return { stage: f.stage, count, value, color: f.color, widthPct }
+  })
 
   return (
     <div className="overflow-auto h-full bg-gray-50">
@@ -121,17 +144,17 @@ export default function Dashboard() {
         {/* ── KPI Row ── */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {[
-            { label: "Tổng giá trị HĐ", value: fmtB(totalContracts), sub: `${projects.length} dự án`, icon: BarChart3,    iconColor: "text-blue-600",   bg: "bg-blue-50",   trend: +8.4 },
-            { label: "Đã thu",           value: fmtB(totalPaid),      sub: `${Math.round(totalPaid/totalContracts*100)}% HĐ`, icon: CheckCircle, iconColor: "text-green-600",  bg: "bg-green-50",  trend: +5.2 },
+            { label: "Tổng giá trị HĐ", value: fmtB(totalContracts), sub: `${signedProjects.length} dự án đã ký`,  icon: BarChart3,    iconColor: "text-blue-600",   bg: "bg-blue-50",   trend: null },
+            { label: "Đã thu",           value: fmtB(totalPaid),      sub: totalContracts > 0 ? `${Math.round(totalPaid/totalContracts*100)}% HĐ` : "—", icon: CheckCircle, iconColor: "text-green-600", bg: "bg-green-50", trend: null },
             { label: "Doanh thu YTD",    value: fmtB(totalRevenue),   sub: "8 tháng gần nhất",            icon: TrendingUp,   iconColor: "text-teal-600",   bg: "bg-teal-50",   trend: +18 },
             { label: "Lợi nhuận gộp",   value: fmtB(grossProfit),    sub: `Biên ${margin}%`,             icon: DollarSign,   iconColor: "text-purple-600", bg: "bg-purple-50", trend: null },
-            { label: "Công nợ",          value: fmtB(totalDebt),      sub: `${fmtB(overdueDebt)} quá hạn`, icon: AlertTriangle,iconColor: "text-orange-600", bg: "bg-orange-50", trend: -3.1 },
-            { label: "Chờ xử lý",       value: `${pendingVOs} VO`,   sub: `${upcomingMilestones} mốc TT`, icon: Clock,        iconColor: "text-red-600",    bg: "bg-red-50",    trend: null, urgent: pendingVOs > 0 },
+            { label: "Công nợ",          value: fmtB(totalDebt),      sub: `${DEBT_LIST.length} đợt chưa thu`, icon: AlertTriangle, iconColor: "text-orange-600", bg: "bg-orange-50", trend: null },
+            { label: "Chờ xử lý",       value: `${pendingVOs} VO`,   sub: `${upcomingMilestones} mốc TT`, icon: Clock,       iconColor: "text-red-600",    bg: "bg-red-50",    trend: null, urgent: pendingVOs > 0 },
           ].map(k => (
             <div key={k.label} className={`bg-white rounded-xl border p-4 shadow-sm ${k.urgent ? "border-red-200 ring-1 ring-red-100" : "border-gray-200"}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className={`${k.bg} rounded-lg p-1.5`}><k.icon className={`w-4 h-4 ${k.iconColor}`} /></div>
-                {k.trend !== null ? (
+                {k.trend !== null && k.trend !== undefined ? (
                   <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${k.trend >= 0 ? "text-green-600" : "text-red-500"}`}>
                     {k.trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                     {k.trend >= 0 ? "+" : ""}{k.trend}%
@@ -190,7 +213,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-semibold text-gray-800 text-sm">Phễu chuyển đổi</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Lead → Dự án · YTD</p>
+                <p className="text-xs text-gray-400 mt-0.5">{PIPELINE_ITEMS.length} dự án · hiện tại</p>
               </div>
               <Link href="/pipeline" className="text-xs text-orange-500 hover:underline flex items-center gap-1">
                 Chi tiết <ArrowRight className="w-3 h-3" />
@@ -204,13 +227,14 @@ export default function Dashboard() {
                     <span className="text-gray-500">{f.count} · {fmtB(f.value)}</span>
                   </div>
                   <div className="h-6 bg-gray-100 rounded-lg overflow-hidden">
-                    <div className={`h-full ${f.color} rounded-lg flex items-center px-2 ${f.w} transition-all`}>
-                      <span className="text-[10px] text-white font-semibold">{f.count}</span>
+                    <div className={`h-full ${f.color} rounded-lg flex items-center px-2 transition-all`}
+                      style={{ width: f.count > 0 ? `${f.widthPct}%` : "0%" }}>
+                      {f.count > 0 && <span className="text-[10px] text-white font-semibold">{f.count}</span>}
                     </div>
                   </div>
-                  {i < LEAD_FUNNEL.length - 1 && (
+                  {i < LEAD_FUNNEL.length - 1 && LEAD_FUNNEL[i].count > 0 && LEAD_FUNNEL[i+1].count > 0 && (
                     <div className="text-[10px] text-gray-300 text-right pr-2">
-                      ↓ {Math.round(LEAD_FUNNEL[i+1].count / f.count * 100)}%
+                      ↓ {Math.round(LEAD_FUNNEL[i+1].count / LEAD_FUNNEL[i].count * 100)}%
                     </div>
                   )}
                 </div>
@@ -235,10 +259,10 @@ export default function Dashboard() {
             </div>
             <div className="divide-y divide-gray-50">
               {TOP_PROJECTS.map(p => {
-                const st = statusInfo[p.status]
-                const isOverBudget = p.spent > p.budget
+                const st = statusInfo[p.status] ?? statusInfo["on-track"]
+                const isOverBudget = p.spent > p.budget && p.budget > 0
                 return (
-                  <div key={p.code} className="px-5 py-3.5 hover:bg-gray-50/60 transition-colors">
+                  <Link key={p.code} href={`/projects/${p.code}`} className="block px-5 py-3.5 hover:bg-gray-50/60 transition-colors">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -250,30 +274,32 @@ export default function Dashboard() {
                       <div className="text-right shrink-0">
                         <div className="text-sm font-bold text-orange-600">{fmtB(p.budget)}</div>
                         <div className={`text-xs ${isOverBudget ? "text-red-500" : "text-gray-400"}`}>
-                          Chi: {fmtB(p.spent)}{isOverBudget ? " ⚠" : ""}
+                          Đã thu: {fmtB(p.spent)}{isOverBudget ? " ⚠" : ""}
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                          <span>Tiến độ</span><span className="font-semibold text-orange-500">{p.progress}%</span>
+                    {p.progress > 0 && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                            <span>Tiến độ</span><span className="font-semibold text-orange-500">{p.progress}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all"
+                              style={{ width: `${p.progress}%`, background: p.progress >= 80 ? "#22c55e" : "#E87625" }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all"
-                            style={{ width: `${p.progress}%`, background: p.progress >= 80 ? "#22c55e" : "#E87625" }} />
+                        <div>
+                          <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                            <span>Thanh toán</span><span className="font-semibold text-blue-500">{p.paid}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-400 rounded-full" style={{ width: `${p.paid}%` }} />
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                          <span>Thanh toán</span><span className="font-semibold text-blue-500">{p.paid}%</span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-400 rounded-full" style={{ width: `${p.paid}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    )}
+                  </Link>
                 )
               })}
             </div>
@@ -339,8 +365,8 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
                 <span className="font-semibold text-gray-800 text-sm">Công nợ cần theo dõi</span>
-                <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">
-                  {DEBT_LIST.filter(d => d.status !== "upcoming").length} quá hạn
+                <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                  {DEBT_LIST.length} đợt
                 </span>
               </div>
               <Link href="/payment" className="text-xs text-orange-500 hover:underline">Xem →</Link>
@@ -355,8 +381,8 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {DEBT_LIST.map(d => (
-                  <tr key={d.project} className="hover:bg-gray-50/60">
+                {DEBT_LIST.map((d, i) => (
+                  <tr key={i} className="hover:bg-gray-50/60">
                     <td className="px-5 py-3">
                       <div className="text-sm font-medium text-gray-900">{d.project}</div>
                       <div className="text-xs text-gray-400">{d.customer}</div>
@@ -384,15 +410,14 @@ export default function Dashboard() {
                 <Link href="/payment" className="text-xs text-orange-500 hover:underline">Xem →</Link>
               </div>
               <div className="divide-y divide-gray-50">
-                {[
-                  { id: "m3", milestone_name: "Đợt 3 – Hoàn thiện nội thất (PRJ-2025-001)", due_date: "15/04/2025", payment_amount: 164_000_000 },
-                  { id: "m4", milestone_name: "Đợt 4 – Bàn giao (PRJ-2025-001)",            due_date: "31/05/2025", payment_amount: 164_000_000 },
-                ].map(m => (
-                  <div key={m.id} className="px-4 py-3 hover:bg-gray-50">
-                    <div className="text-sm font-medium text-gray-800 truncate">{m.milestone_name}</div>
+                {DEBT_LIST.map((m, i) => (
+                  <div key={i} className="px-4 py-3 hover:bg-gray-50">
+                    <div className="text-sm font-medium text-gray-800 truncate">
+                      Đợt {i + 3} – {i === 0 ? "Hoàn thiện nội thất" : "Bàn giao"} · PRJ-2025-001
+                    </div>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" />{m.due_date}</span>
-                      <span className="text-xs font-bold text-orange-600">{fmtVND(m.payment_amount)}</span>
+                      <span className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" />{m.dueDate}</span>
+                      <span className="text-xs font-bold text-orange-600">{fmtVND(m.amount)}</span>
                     </div>
                   </div>
                 ))}
@@ -407,7 +432,7 @@ export default function Dashboard() {
               </div>
               <div className="divide-y divide-gray-50">
                 {PIPELINE_VOS.filter(v => v.status === "pending").map(vo => (
-                  <Link key={vo.id} href={`/pipeline`} className="block px-4 py-3 hover:bg-gray-50">
+                  <Link key={vo.id} href="/pipeline" className="block px-4 py-3 hover:bg-gray-50">
                     <div className="font-medium text-sm text-gray-800 truncate">{vo.title}</div>
                     <div className="flex items-center justify-between mt-0.5">
                       <span className="text-xs text-gray-400">{vo.projectName}</span>
@@ -415,9 +440,6 @@ export default function Dashboard() {
                     </div>
                   </Link>
                 ))}
-                {PIPELINE_VOS.filter(v => v.status === "pending").length === 0 && (
-                  <div className="px-4 py-5 text-center text-sm text-gray-400">Không có VO nào chờ duyệt</div>
-                )}
               </div>
             </div>
           </div>
@@ -465,10 +487,10 @@ export default function Dashboard() {
             </div>
             <div className="px-5 py-4 space-y-3">
               {[
-                { label: "Đơn hàng đang xử lý", value: 8,   color: "text-blue-600",   bg: "bg-blue-50" },
-                { label: "Chờ nhận hàng",        value: 3,   color: "text-orange-600", bg: "bg-orange-50" },
-                { label: "Hoàn thành tháng này", value: 14,  color: "text-green-600",  bg: "bg-green-50" },
-                { label: "Vượt ngân sách",       value: 1,   color: "text-red-600",    bg: "bg-red-50" },
+                { label: "Đơn hàng đang xử lý", value: 2,  color: "text-blue-600",   bg: "bg-blue-50" },
+                { label: "Chờ nhận hàng",        value: 1,  color: "text-orange-600", bg: "bg-orange-50" },
+                { label: "Hoàn thành tháng này", value: 3,  color: "text-green-600",  bg: "bg-green-50" },
+                { label: "Vượt ngân sách",       value: 0,  color: "text-red-600",    bg: "bg-red-50" },
               ].map(item => (
                 <div key={item.label} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">{item.label}</span>

@@ -94,7 +94,7 @@ export const PIPELINE_ITEMS: PipelineItem[] = [
     totalPaid: 492_000_000,   // Đợt 1 (328M) + Đợt 2 (164M)
     totalDebt: 328_000_000,   // Đợt 3 (164M) + Đợt 4 (164M) chưa thu
     marginPct: 22,
-    permitOk: false,           // Căn hộ tái cải tạo không cần GP TC
+    permitOk: true,            // Cải tạo nội thất không cần GP thi công
   },
   {
     // Dự án 2 – Đang thiết kế

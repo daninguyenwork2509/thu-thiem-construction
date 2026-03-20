@@ -67,13 +67,13 @@ export const MOCK_USERS: (AuthUser & { password: string })[] = [
 
 export const ROLE_NAV_PERMISSIONS: Record<UserRole, string[]> = {
   admin:      ["/", "/pipeline", "/boq", "/leads", "/projects", "/contractors", "/materials", "/vo", "/payment", "/qa", "/files", "/documents", "/drawings", "/reports", "/settings"],
-  pm:         ["/", "/pipeline", "/boq", "/projects", "/contractors", "/materials", "/vo", "/payment", "/qa", "/files", "/documents", "/drawings", "/reports"],
-  sales:      ["/", "/pipeline", "/boq", "/leads", "/projects", "/files", "/documents"],
-  qs:         ["/", "/boq", "/pipeline", "/projects", "/contractors", "/vo", "/files", "/drawings", "/documents"],
-  purchasing: ["/", "/boq", "/materials", "/contractors", "/files", "/documents"],
-  accountant: ["/", "/boq", "/payment", "/reports", "/files", "/documents"],
-  site:       ["/", "/boq", "/projects", "/vo", "/qa", "/files", "/drawings"],
-  qa:         ["/", "/boq", "/projects", "/qa", "/files", "/drawings", "/documents"],
+  pm:         ["/", "/pipeline", "/boq", "/projects", "/contractors", "/materials", "/vo", "/payment", "/qa", "/files", "/documents", "/drawings", "/reports", "/settings"],
+  sales:      ["/", "/pipeline", "/boq", "/leads", "/projects", "/files", "/documents", "/settings"],
+  qs:         ["/", "/boq", "/pipeline", "/projects", "/contractors", "/vo", "/files", "/drawings", "/documents", "/settings"],
+  purchasing: ["/", "/boq", "/materials", "/contractors", "/files", "/documents", "/settings"],
+  accountant: ["/", "/boq", "/payment", "/reports", "/files", "/documents", "/settings"],
+  site:       ["/", "/boq", "/projects", "/vo", "/qa", "/files", "/drawings", "/settings"],
+  qa:         ["/", "/boq", "/projects", "/qa", "/files", "/drawings", "/documents", "/settings"],
 }
 
 // ── Reducer ───────────────────────────────────────────────────────────────────

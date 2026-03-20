@@ -1,6 +1,7 @@
 "use client"
 import { useAuth } from "@/lib/auth-store"
-import { mockProjects, mockVOs, mockMilestones, fmtVND } from "@/lib/mock-data"
+import { fmtVND } from "@/lib/mock-data"
+import { PIPELINE_ITEMS, PIPELINE_VOS } from "@/lib/project-data"
 import {
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock,
   FolderKanban, AlertCircle, Wallet, Plus, FileText,
@@ -86,11 +87,12 @@ export default function Dashboard() {
   const { state } = useAuth()
   const firstName = state.user?.fullName?.split(" ").pop() ?? "bạn"
 
-  const totalContracts = mockProjects.reduce((s, p) => s + p.contract_value, 0)
-  const totalPaid      = mockProjects.reduce((s, p) => s + p.total_paid, 0)
-  const totalDebt      = mockProjects.reduce((s, p) => s + p.total_outstanding_debt, 0)
-  const pendingVOs     = mockVOs.filter(v => v.status === "customer_pending").length
-  const upcomingMilestones = mockMilestones.filter(m => m.status !== "paid").length
+  const projects       = PIPELINE_ITEMS.filter(p => p.type === "project")
+  const totalContracts = projects.filter(p => ["construction","payment","handover"].includes(p.stage)).reduce((s, p) => s + p.value, 0)
+  const totalPaid      = projects.reduce((s, p) => s + (p.totalPaid ?? 0), 0)
+  const totalDebt      = projects.reduce((s, p) => s + (p.totalDebt ?? 0), 0)
+  const pendingVOs     = PIPELINE_VOS.filter(v => v.status === "pending").length
+  const upcomingMilestones = 2 // Đợt 3 + Đợt 4 của PRJ-2025-001 chưa thu
   const totalRevenue   = MONTHLY.reduce((s, r) => s + r.revenue, 0) * 1_000_000
   const totalCost      = MONTHLY.reduce((s, r) => s + r.cost, 0) * 1_000_000
   const grossProfit    = totalRevenue - totalCost
@@ -119,7 +121,7 @@ export default function Dashboard() {
         {/* ── KPI Row ── */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {[
-            { label: "Tổng giá trị HĐ", value: fmtB(totalContracts), sub: `${mockProjects.length} dự án`, icon: BarChart3,    iconColor: "text-blue-600",   bg: "bg-blue-50",   trend: +8.4 },
+            { label: "Tổng giá trị HĐ", value: fmtB(totalContracts), sub: `${projects.length} dự án`, icon: BarChart3,    iconColor: "text-blue-600",   bg: "bg-blue-50",   trend: +8.4 },
             { label: "Đã thu",           value: fmtB(totalPaid),      sub: `${Math.round(totalPaid/totalContracts*100)}% HĐ`, icon: CheckCircle, iconColor: "text-green-600",  bg: "bg-green-50",  trend: +5.2 },
             { label: "Doanh thu YTD",    value: fmtB(totalRevenue),   sub: "8 tháng gần nhất",            icon: TrendingUp,   iconColor: "text-teal-600",   bg: "bg-teal-50",   trend: +18 },
             { label: "Lợi nhuận gộp",   value: fmtB(grossProfit),    sub: `Biên ${margin}%`,             icon: DollarSign,   iconColor: "text-purple-600", bg: "bg-purple-50", trend: null },
@@ -382,7 +384,10 @@ export default function Dashboard() {
                 <Link href="/payment" className="text-xs text-orange-500 hover:underline">Xem →</Link>
               </div>
               <div className="divide-y divide-gray-50">
-                {mockMilestones.filter(m => m.status !== "paid").slice(0, 4).map(m => (
+                {[
+                  { id: "m3", milestone_name: "Đợt 3 – Hoàn thiện nội thất (PRJ-2025-001)", due_date: "15/04/2025", payment_amount: 164_000_000 },
+                  { id: "m4", milestone_name: "Đợt 4 – Bàn giao (PRJ-2025-001)",            due_date: "31/05/2025", payment_amount: 164_000_000 },
+                ].map(m => (
                   <div key={m.id} className="px-4 py-3 hover:bg-gray-50">
                     <div className="text-sm font-medium text-gray-800 truncate">{m.milestone_name}</div>
                     <div className="flex items-center justify-between mt-1">
@@ -401,16 +406,16 @@ export default function Dashboard() {
                 <Link href="/pipeline" className="text-xs text-orange-500 hover:underline">Xem →</Link>
               </div>
               <div className="divide-y divide-gray-50">
-                {mockVOs.filter(v => v.status === "customer_pending").map(vo => (
-                  <Link key={vo.id} href={`/vo/${vo.id}`} className="block px-4 py-3 hover:bg-gray-50">
+                {PIPELINE_VOS.filter(v => v.status === "pending").map(vo => (
+                  <Link key={vo.id} href={`/pipeline`} className="block px-4 py-3 hover:bg-gray-50">
                     <div className="font-medium text-sm text-gray-800 truncate">{vo.title}</div>
                     <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-xs text-gray-400">{vo.vo_code}</span>
-                      <span className="text-xs font-bold text-orange-600">{fmtVND(vo.selling_price_vat)}</span>
+                      <span className="text-xs text-gray-400">{vo.projectName}</span>
+                      <span className="text-xs font-bold text-orange-600">{fmtVND(vo.amount)}</span>
                     </div>
                   </Link>
                 ))}
-                {mockVOs.filter(v => v.status === "customer_pending").length === 0 && (
+                {PIPELINE_VOS.filter(v => v.status === "pending").length === 0 && (
                   <div className="px-4 py-5 text-center text-sm text-gray-400">Không có VO nào chờ duyệt</div>
                 )}
               </div>

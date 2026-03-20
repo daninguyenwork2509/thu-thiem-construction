@@ -2,8 +2,10 @@
 import { useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
-import { useAppStore } from "@/lib/app-store"
-import { mockProjects, mockBoqLines, mockVOs, mockMilestones, fmtVND } from "@/lib/mock-data"
+import {
+  PIPELINE_ITEMS, PIPELINE_VOS, PROJECT_BOQ, STAGE_TO_STEP, fmtVND,
+  type PipelineItem, type Stage,
+} from "@/lib/project-data"
 import {
   ArrowLeft, CheckCircle, AlertTriangle,
   GitBranch, FolderOpen,
@@ -15,7 +17,18 @@ import Link from "next/link"
 import ProjectBOQTab from "./components/ProjectBOQTab"
 import ProjectFilesTab from "./components/ProjectFilesTab"
 
-// ── Status maps ───────────────────────────────────────────────────────────────
+// ── Milestone type ─────────────────────────────────────────────────────────────
+type MilestoneStatus = "paid" | "approved" | "pending_approval" | "draft" | "overdue"
+interface Milestone {
+  id: string
+  milestone_order: number
+  milestone_name: string
+  payment_percent: number
+  payment_amount: number
+  status: MilestoneStatus
+  due_date: string
+}
+
 const msColor: Record<string, string> = {
   paid: "bg-green-100 text-green-700", approved: "bg-blue-100 text-blue-700",
   pending_approval: "bg-yellow-100 text-yellow-700", draft: "bg-gray-100 text-gray-500",
@@ -24,31 +37,24 @@ const msColor: Record<string, string> = {
 const msLabel: Record<string, string> = {
   paid: "Đã thu", approved: "Đã duyệt", pending_approval: "Chờ duyệt", draft: "Nháp", overdue: "Quá hạn",
 }
-const voColor: Record<string, string> = {
-  director_approved: "bg-green-100 text-green-700", customer_pending: "bg-yellow-100 text-yellow-700",
-  pm_review: "bg-blue-100 text-blue-700", rejected: "bg-red-100 text-red-600", draft: "bg-gray-100 text-gray-500",
-}
-const voLabel: Record<string, string> = {
-  director_approved: "GĐ duyệt", customer_pending: "Chờ KH", pm_review: "PM duyệt",
-  rejected: "Từ chối", draft: "Nháp",
-}
 
-// ── Mock docs & QA ────────────────────────────────────────────────────────────
-const MOCK_DOCS = [
-  { id: 1, name: "Hợp đồng thi công.pdf",     type: "pdf",  size: "2.4 MB", date: "01/02/2025", category: "Hợp đồng" },
-  { id: 2, name: "Bản vẽ kiến trúc tầng 1.dwg", type: "dwg", size: "8.1 MB", date: "05/02/2025", category: "Bản vẽ" },
-  { id: 3, name: "Bản vẽ điện M&E.pdf",        type: "pdf",  size: "3.2 MB", date: "10/02/2025", category: "Bản vẽ" },
-  { id: 4, name: "Biên bản nghiệm thu phần thô.pdf", type: "pdf", size: "1.1 MB", date: "15/04/2025", category: "Nghiệm thu" },
-  { id: 5, name: "Bảng vật liệu được duyệt.xlsx", type: "xlsx", size: "0.8 MB", date: "20/02/2025", category: "Vật tư" },
-]
-const MOCK_QA = [
-  { id: 1, item: "Độ phẳng tường phòng khách ≤ 3mm",    phase: "Xây tô",     status: "pass" as const, date: "10/04/2025", by: "Đặng T. Hương" },
-  { id: 2, item: "Khe góc tường vuông 90°",               phase: "Xây tô",     status: "fail" as const, date: "10/04/2025", by: "Đặng T. Hương" },
-  { id: 3, item: "Ống điện đúng sơ đồ M&E",               phase: "Điện rough", status: "pass" as const, date: "05/04/2025", by: "Đặng T. Hương" },
-  { id: 4, item: "Thép đai cột đúng khoảng cách 150mm",  phase: "Phần thô",   status: "pass" as const, date: "01/03/2025", by: "Trần T. Bình" },
-  { id: 5, item: "Bê tông không bị rỗ, vá lại đúng kỹ thuật", phase: "Phần thô", status: "pass" as const, date: "01/03/2025", by: "Trần T. Bình" },
-]
-const FILE_ICON: Record<string, string> = { pdf: "📄", dwg: "📐", xlsx: "📊", docx: "📝", jpg: "🖼️" }
+// ── Stage badge/label ─────────────────────────────────────────────────────────
+const stageBadge: Record<Stage, string> = {
+  lead:         "bg-gray-100 text-gray-600",
+  design:       "bg-indigo-100 text-indigo-700",
+  contract:     "bg-yellow-100 text-yellow-700",
+  construction: "bg-blue-100 text-blue-700",
+  payment:      "bg-purple-100 text-purple-700",
+  handover:     "bg-green-100 text-green-700",
+}
+const stageText: Record<Stage, string> = {
+  lead:         "Lead mới",
+  design:       "Đang thiết kế",
+  contract:     "Hợp đồng",
+  construction: "Đang thi công",
+  payment:      "Thu tiền",
+  handover:     "Nghiệm thu",
+}
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
@@ -78,19 +84,8 @@ interface TimelineStepDef {
   body: React.ReactNode
 }
 
-// Map project_status → current active step index (0-based)
-function getActiveStep(projectStatus: string, progressPct: number): number {
-  if (projectStatus === "completed") return 9 // all done
-  if (projectStatus === "warranty")  return 8
-  if (projectStatus === "inspecting") return 6
-  if (projectStatus === "under_construction") return progressPct >= 90 ? 7 : 4
-  if (projectStatus === "legal_check") return 3
-  if (projectStatus === "draft") return 0
-  return 4
-}
-
 function getStepStatus(stepIdx: number, activeStep: number): StepStatus {
-  if (activeStep >= 9) return "done"   // all done
+  if (activeStep >= 8) return "done"
   if (stepIdx < activeStep) return "done"
   if (stepIdx === activeStep) return "active"
   return "pending"
@@ -206,20 +201,16 @@ function TimelineStep({
 }
 
 // ── Next action banner ─────────────────────────────────────────────────────────
-function NextActionBanner({ stage, surveyCount }: { stage: string; surveyCount: number }) {
-  const map: Record<string, { current: string; next: string }> = {
-    lead_new:             { current: "Tiếp nhận Lead",            next: "Sales cần giao KS xuống khảo sát hiện trường" },
-    surveying:            { current: "Khảo sát hiện trạng",       next: `KS cần upload đủ ảnh khảo sát (hiện có: ${surveyCount}/5)` },
-    awaiting_design_fee:  { current: "Chờ thu phí bản vẽ",        next: "Kế toán cần xác nhận thu phí thiết kế" },
-    designing:            { current: "Đang thiết kế",             next: "KS thiết kế + QS bóc tách BOQ, chờ KH duyệt bản vẽ" },
-    quotation:            { current: "Báo giá",                   next: "PM gửi báo giá cho KH, chờ phản hồi và đàm phán" },
-    contract_signed:      { current: "Đã ký hợp đồng",           next: "PM lập Gantt baseline và phân bổ gói thầu phụ" },
-    construction:         { current: "Đang thi công",             next: "GS cập nhật % tiến độ hôm nay — kiểm tra VO chờ duyệt" },
-    handover:             { current: "Nghiệm thu & QC",           next: "Chốt khối lượng nghiệm thu + ảnh Before/After theo BOQ" },
-    warranty:             { current: "Bảo hành",                  next: "Theo dõi hết hạn bảo hành, xử lý yêu cầu bảo hành KH" },
-    done:                 { current: "Hoàn thành",                next: "Dự án đã kết thúc — lưu trữ hồ sơ và đánh giá KH" },
+function NextActionBanner({ stage }: { stage: Stage }) {
+  const map: Record<Stage, { current: string; next: string }> = {
+    lead:         { current: "Tiếp nhận Lead",      next: "Sales cần giao KS xuống khảo sát hiện trường" },
+    design:       { current: "Đang thiết kế",        next: "KS thiết kế + QS bóc tách BOQ, chờ KH duyệt bản vẽ" },
+    contract:     { current: "Đã ký hợp đồng",       next: "PM lập Gantt baseline và phân bổ gói thầu phụ" },
+    construction: { current: "Đang thi công",         next: "GS cập nhật % tiến độ hôm nay — kiểm tra VO chờ duyệt" },
+    payment:      { current: "Thu tiền theo đợt",     next: "Kế toán xuất hóa đơn, theo dõi công nợ" },
+    handover:     { current: "Nghiệm thu & Bàn giao", next: "Chốt khối lượng nghiệm thu + ảnh Before/After theo BOQ" },
   }
-  const info = map[stage] ?? map["construction"]
+  const info = map[stage]
   return (
     <div className="rounded-xl px-4 py-3 mb-5 flex items-start gap-3"
       style={{ background: "linear-gradient(135deg,#FFF7ED,#FFFBEB)", border: "1.5px solid #FED7AA" }}>
@@ -233,28 +224,28 @@ function NextActionBanner({ stage, surveyCount }: { stage: string; surveyCount: 
 }
 
 // ── Timeline sidebar ───────────────────────────────────────────────────────────
-function TimelineSidebar({ project, milestones, vos, boqLines }: {
-  project: typeof mockProjects[0]
-  milestones: typeof mockMilestones
-  vos: typeof mockVOs
-  boqLines: typeof mockBoqLines
+function TimelineSidebar({ project, milestones, vos }: {
+  project: PipelineItem
+  milestones: Milestone[]
+  vos: typeof PIPELINE_VOS
 }) {
+  const boqLines  = PROJECT_BOQ.filter(b => b.projectId === project.id)
   const totalBOQ  = boqLines.reduce((s, b) => s + b.qty * b.selling_price, 0)
   const totalCost = boqLines.reduce((s, b) => s + b.qty * b.cost_price, 0)
-  const margin = totalBOQ > 0 ? ((totalBOQ - totalCost) / totalBOQ * 100) : 0
-  const voWaiting = vos.filter(v => v.status === "customer_pending" || v.status === "pm_review").length
-  const hasAlerts = voWaiting > 0 || project.total_outstanding_debt > 0
-
-  const SUBCONTRACTORS = [
-    { name: "Phần thô", contractor: "Xây dựng Tiến Phát", pct: 90, onTime: true },
-    { name: "Điện – M&E", contractor: "M&E Đông Dương", pct: 60, onTime: true },
-    { name: "Nội thất", contractor: "Nội thất Minh Long", pct: 15, onTime: false },
-  ]
+  const margin    = totalBOQ > 0 ? ((totalBOQ - totalCost) / totalBOQ * 100) : (project.marginPct ?? 0)
+  const voWaiting = vos.filter(v => v.status === "pending").length
+  const debt      = project.totalDebt ?? 0
+  const hasAlerts = voWaiting > 0 || debt > 0 || !(project.permitOk ?? true)
 
   const PEOPLE = [
-    { role: "PM phụ trách",    name: project.pm_name, avatar: project.pm_name[0] },
-    { role: "KS Thiết kế",    name: "Trần Thị Bình",  avatar: "B" },
-    { role: "QS Dự toán",     name: "Hoàng Văn Nam",  avatar: "N" },
+    { role: "PM phụ trách", name: project.pm ?? project.responsible,   avatar: (project.pm ?? project.responsible)[0] },
+    { role: "KS Thiết kế",  name: project.designer ?? "—",             avatar: (project.designer ?? "?")[0] },
+    { role: "QS Dự toán",   name: project.qs ?? "—",                   avatar: (project.qs ?? "?")[0] },
+  ]
+  const SUBCONTRACTORS = [
+    { name: "Phần thô",    contractor: "Xây dựng Tiến Phát", pct: 90, onTime: true },
+    { name: "Điện – M&E",  contractor: "M&E Đông Dương",     pct: 60, onTime: true },
+    { name: "Nội thất",    contractor: "Nội thất Minh Long",  pct: 15, onTime: false },
   ]
 
   return (
@@ -288,10 +279,10 @@ function TimelineSidebar({ project, milestones, vos, boqLines }: {
         </div>
         <div className="px-4 py-3 space-y-2">
           {[
-            { label: "Giá trị HĐ",    value: fmtVND(project.contract_value),            color: "text-gray-900 font-bold" },
-            { label: "Đã thu",         value: fmtVND(project.total_paid),                color: "text-green-600 font-semibold" },
-            { label: "Còn nợ",         value: fmtVND(project.total_outstanding_debt),    color: project.total_outstanding_debt > 0 ? "text-red-600 font-semibold" : "text-gray-400" },
-            { label: "Chi phí ước",   value: fmtVND(totalCost),                          color: "text-gray-600" },
+            { label: "Giá trị HĐ",  value: fmtVND(project.value),                color: "text-gray-900 font-bold" },
+            { label: "Đã thu",       value: fmtVND(project.totalPaid ?? 0),        color: "text-green-600 font-semibold" },
+            { label: "Còn nợ",       value: fmtVND(debt),                          color: debt > 0 ? "text-red-600 font-semibold" : "text-gray-400" },
+            { label: "Chi phí ước",  value: fmtVND(totalCost || project.value * 0.77), color: "text-gray-600" },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center justify-between text-xs">
               <span className="text-gray-500">{label}</span>
@@ -348,13 +339,13 @@ function TimelineSidebar({ project, milestones, vos, boqLines }: {
                 <span><b>{voWaiting} VO</b> đang chờ phê duyệt</span>
               </div>
             )}
-            {project.total_outstanding_debt > 0 && (
+            {debt > 0 && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-800">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
-                <span>KH còn nợ <b>{fmtVND(project.total_outstanding_debt)}</b></span>
+                <span>KH còn nợ <b>{fmtVND(debt)}</b></span>
               </div>
             )}
-            {!project.has_building_permit && (
+            {!(project.permitOk ?? true) && (
               <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-800">
                 <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
                 <span>Chưa có giấy phép thi công</span>
@@ -388,10 +379,25 @@ function TimelineSidebar({ project, milestones, vos, boqLines }: {
   )
 }
 
+// ── Build milestones for a project ─────────────────────────────────────────────
+function buildMilestones(project: PipelineItem): Milestone[] {
+  const v = project.value
+  const isPaid = (project.stage === "payment" || project.stage === "handover")
+  return [
+    { id: "m1", milestone_order: 1, milestone_name: "Sau ký HĐ",           payment_percent: 40, payment_amount: v * 0.4, status: "paid",             due_date: project.contractDate ?? "" },
+    { id: "m2", milestone_order: 2, milestone_name: "Hoàn thành thô",       payment_percent: 20, payment_amount: v * 0.2, status: "paid",             due_date: "" },
+    { id: "m3", milestone_order: 3, milestone_name: "Hoàn thiện nội thất",  payment_percent: 20, payment_amount: v * 0.2, status: isPaid ? "paid" : "pending_approval", due_date: "" },
+    { id: "m4", milestone_order: 4, milestone_name: "Bàn giao",             payment_percent: 20, payment_amount: v * 0.2, status: project.stage === "handover" ? "pending_approval" : "draft", due_date: project.deadline ?? "" },
+  ]
+}
+
 // ── Build 9 steps for a given project ─────────────────────────────────────────
-function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMilestones, vos: typeof mockVOs): TimelineStepDef[] {
-  const surveyCount = 3 // mock
+function buildSteps(project: PipelineItem, milestones: Milestone[], vos: typeof PIPELINE_VOS): TimelineStepDef[] {
+  const surveyCount = 3
   const paidMilestones = milestones.filter(m => m.status === "paid").length
+  const permitOk = project.permitOk ?? false
+  const progress = project.progress ?? 0
+  const debt = project.totalDebt ?? 0
 
   return [
     {
@@ -400,11 +406,11 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
       date: "05/01/2025",
       body: (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
-          <div><span className="text-gray-400">Khách hàng:</span> <span className="font-medium text-gray-800">{project.customer_name}</span></div>
-          <div><span className="text-gray-400">SĐT:</span> <span className="font-medium text-gray-800">{project.customer_phone}</span></div>
-          <div><span className="text-gray-400">Ngân sách KH:</span> <span className="font-medium text-orange-600">{fmtVND(350_000_000)}</span></div>
+          <div><span className="text-gray-400">Khách hàng:</span> <span className="font-medium text-gray-800">{project.client}</span></div>
+          <div><span className="text-gray-400">SĐT:</span> <span className="font-medium text-gray-800">{project.phone ?? "—"}</span></div>
+          <div><span className="text-gray-400">Ngân sách KH:</span> <span className="font-medium text-orange-600">{fmtVND(project.value * 0.9)}</span></div>
           <div><span className="text-gray-400">Mức linh hoạt:</span> <span className="font-medium text-gray-800">Cố định</span></div>
-          <div className="col-span-2"><span className="text-gray-400">Ghi chú:</span> <span className="font-medium text-gray-800">Phong cách Nhật tối giản. Không đục kết cấu. Thi công sau 18h vì KH WFH.</span></div>
+          <div className="col-span-2"><span className="text-gray-400">Ghi chú:</span> <span className="font-medium text-gray-800">{project.note ?? "Phong cách Nhật tối giản. Không đục kết cấu."}</span></div>
         </div>
       ),
     },
@@ -446,8 +452,8 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
         <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
           <div><span className="text-gray-400">Phí bản vẽ:</span> <span className="font-medium text-gray-800">{fmtVND(5_000_000)}</span></div>
           <div><span className="text-gray-400">Đã thu:</span> <span className="font-medium text-green-600">✓ 20/01/2025</span></div>
-          <div><span className="text-gray-400">KS thiết kế:</span> <span className="font-medium text-gray-800">Trần Thị Bình</span></div>
-          <div><span className="text-gray-400">QS dự toán:</span> <span className="font-medium text-gray-800">Hoàng Văn Nam</span></div>
+          <div><span className="text-gray-400">KS thiết kế:</span> <span className="font-medium text-gray-800">{project.designer ?? "—"}</span></div>
+          <div><span className="text-gray-400">QS dự toán:</span> <span className="font-medium text-gray-800">{project.qs ?? "—"}</span></div>
           <div><span className="text-gray-400">File bản vẽ:</span> <span className="font-medium text-blue-600 underline cursor-pointer">3 file đã upload</span></div>
         </div>
       ),
@@ -455,15 +461,15 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
     {
       num: 4, title: "Báo giá & Ký hợp đồng",
       subtitle: "Gửi báo giá cho KH, đàm phán và ký kết hợp đồng",
-      date: "01/02/2025",
+      date: project.contractDate ?? "01/02/2025",
       gates: [
         { label: "KH ký duyệt hợp đồng thi công", passed: true },
       ],
       body: (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
-          <div><span className="text-gray-400">Giá trị HĐ:</span> <span className="font-bold text-orange-600">{fmtVND(project.contract_value)}</span></div>
-          <div><span className="text-gray-400">Ngày ký:</span> <span className="font-medium text-gray-800">01/02/2025</span></div>
-          <div><span className="text-gray-400">Margin HĐ:</span> <span className="font-medium text-green-600">22.5%</span></div>
+          <div><span className="text-gray-400">Giá trị HĐ:</span> <span className="font-bold text-orange-600">{fmtVND(project.value)}</span></div>
+          <div><span className="text-gray-400">Ngày ký:</span> <span className="font-medium text-gray-800">{project.contractDate ?? "—"}</span></div>
+          <div><span className="text-gray-400">Margin HĐ:</span> <span className="font-medium text-green-600">{project.marginPct ?? 22}%</span></div>
           <div><span className="text-gray-400">Thời gian TC:</span> <span className="font-medium text-gray-800">6 tháng</span></div>
         </div>
       ),
@@ -471,11 +477,11 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
     {
       num: 5, title: "Thi công",
       subtitle: "Triển khai gói thầu, giám sát tiến độ hàng ngày",
-      date: "05/02/2025",
+      date: project.startDate ?? "05/02/2025",
       gates: [
-        { label: "Giấy phép thi công đã được cấp", passed: project.has_building_permit, failMsg: "Chưa có giấy phép thi công — không được khởi công" },
-        { label: "Đã duyệt mẫu vật liệu chính", passed: project.has_material_board },
-        { label: `VO chờ duyệt: ${vos.filter(v => v.status === "customer_pending").length} VO`, passed: vos.filter(v => v.status === "customer_pending").length === 0, failMsg: `Còn ${vos.filter(v => v.status === "customer_pending").length} VO chờ KH phê duyệt` },
+        { label: "Giấy phép thi công đã được cấp", passed: permitOk, failMsg: "Chưa có giấy phép thi công — không được khởi công" },
+        { label: "Đã duyệt mẫu vật liệu chính", passed: true },
+        { label: `VO chờ duyệt: ${vos.filter(v => v.status === "pending").length} VO`, passed: vos.filter(v => v.status === "pending").length === 0, failMsg: `Còn ${vos.filter(v => v.status === "pending").length} VO chờ KH phê duyệt` },
       ],
       body: (
         <div className="space-y-3">
@@ -484,17 +490,17 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
               <div className="text-xs text-gray-500 mb-1">Tiến độ tổng thể</div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${project.progress_pct}%`, background: "linear-gradient(90deg,#EA580C,#F97316)" }} />
+                  <div className="h-full rounded-full" style={{ width: `${progress}%`, background: "linear-gradient(90deg,#EA580C,#F97316)" }} />
                 </div>
-                <span className="text-sm font-bold text-orange-600 w-10 text-right">{project.progress_pct}%</span>
+                <span className="text-sm font-bold text-orange-600 w-10 text-right">{progress}%</span>
               </div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: "Phần thô", pct: 90, color: "bg-green-400" },
+              { label: "Phần thô",   pct: 90, color: "bg-green-400" },
               { label: "Điện – M&E", pct: 60, color: "bg-blue-400" },
-              { label: "Nội thất", pct: 15, color: "bg-orange-400" },
+              { label: "Nội thất",   pct: 15, color: "bg-orange-400" },
             ].map(g => (
               <div key={g.label} className="bg-gray-50 rounded-lg p-2.5 text-center">
                 <div className="text-[11px] text-gray-500 mb-1">{g.label}</div>
@@ -505,10 +511,6 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
               </div>
             ))}
           </div>
-          <Link href={`/boq?project=${project.id}`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 border border-orange-200 hover:bg-orange-50 px-3 py-1.5 rounded-lg transition">
-            <FileText className="w-3.5 h-3.5" /> Xem BOQ chi tiết →
-          </Link>
         </div>
       ),
     },
@@ -516,16 +518,11 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
       num: 6, title: "Thu tiền theo đợt",
       subtitle: "Xuất hóa đơn và theo dõi thu tiền từng mốc",
       gates: [
-        { label: `Đã thu ${paidMilestones}/${milestones.length || 4} đợt`, passed: paidMilestones === (milestones.length || 4), failMsg: `Còn ${(milestones.length || 4) - paidMilestones} đợt chưa thu — không thể bàn giao` },
+        { label: `Đã thu ${paidMilestones}/${milestones.length} đợt`, passed: paidMilestones === milestones.length, failMsg: `Còn ${milestones.length - paidMilestones} đợt chưa thu — không thể bàn giao` },
       ],
       body: (
         <div className="space-y-1.5">
-          {(milestones.length > 0 ? milestones : [
-            { id: "m1", milestone_order: 1, milestone_name: "Sau ký HĐ",         payment_percent: 40, payment_amount: project.contract_value * 0.4,  status: "paid",             due_date: "01/02/2025" },
-            { id: "m2", milestone_order: 2, milestone_name: "Hoàn thành thô",    payment_percent: 20, payment_amount: project.contract_value * 0.2,  status: "paid",             due_date: "10/03/2025" },
-            { id: "m3", milestone_order: 3, milestone_name: "Hoàn thiện nội thất", payment_percent: 20, payment_amount: project.contract_value * 0.2, status: "pending_approval", due_date: "15/04/2025" },
-            { id: "m4", milestone_order: 4, milestone_name: "Bàn giao",          payment_percent: 20, payment_amount: project.contract_value * 0.2,  status: "draft",            due_date: "31/05/2025" },
-          ]).map(m => (
+          {milestones.map(m => (
             <div key={m.id} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
               m.status === "paid" ? "bg-green-50 border border-green-100"
               : m.status === "pending_approval" ? "bg-yellow-50 border border-yellow-100"
@@ -564,7 +561,7 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
       num: 8, title: "Bàn giao & Hoàn công",
       subtitle: "Bàn giao mặt bằng, bàn giao hồ sơ, thu đợt cuối",
       gates: [
-        { label: "Công nợ KH = 0 ₫", passed: project.total_outstanding_debt === 0, failMsg: `KH còn nợ ${fmtVND(project.total_outstanding_debt)} — không thể bàn giao` },
+        { label: "Công nợ KH = 0 ₫", passed: debt === 0, failMsg: `KH còn nợ ${fmtVND(debt)} — không thể bàn giao` },
         { label: "Biên bản nghiệm thu đã ký", passed: false },
       ],
       body: (
@@ -593,12 +590,9 @@ function buildSteps(project: typeof mockProjects[0], milestones: typeof mockMile
 function ProjectDetailInner() {
   const { id } = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  const { state } = useAppStore()
   const [tab, setTab] = useState(searchParams.get("tab") ?? "timeline")
 
-  const project =
-    state.projects.find(p => p.id === Number(id)) ??
-    (mockProjects as typeof state.projects).find(p => p.id === Number(id))
+  const project = PIPELINE_ITEMS.find(p => p.id === id)
 
   if (!project) {
     return (
@@ -609,31 +603,13 @@ function ProjectDetailInner() {
     )
   }
 
-  const boqLines   = mockBoqLines.filter(b => b.project_id === project.id)
-  const vos        = mockVOs.filter(v => v.project_id === project.id)
-  const milestones = mockMilestones.filter(m => m.project_id === project.id)
+  const vos        = PIPELINE_VOS.filter(v => v.projectId === project.id)
+  const milestones = buildMilestones(project)
 
-  const statusBadge = {
-    under_construction: "bg-blue-100 text-blue-700",
-    legal_check: "bg-yellow-100 text-yellow-700",
-    completed: "bg-green-100 text-green-700",
-    inspecting: "bg-purple-100 text-purple-700",
-    draft: "bg-gray-100 text-gray-600",
-    warranty: "bg-teal-100 text-teal-700",
-  } as Record<string, string>
-  const statusText = {
-    under_construction: "Đang thi công", legal_check: "Kiểm tra pháp lý",
-    completed: "Hoàn thành", inspecting: "Nghiệm thu", draft: "Nháp", warranty: "Bảo hành",
-  } as Record<string, string>
-
-  // Timeline data
-  const activeStep = getActiveStep(project.project_status, project.progress_pct)
-  const lifecycleStage = project.project_status === "under_construction" ? "construction"
-    : project.project_status === "completed" ? "done"
-    : project.project_status === "warranty" ? "warranty"
-    : project.project_status === "legal_check" ? "contract_signed"
-    : "construction"
+  const activeStep    = STAGE_TO_STEP[project.stage]
   const timelineSteps = buildSteps(project, milestones, vos)
+  const progress      = project.progress ?? 0
+  const debt          = project.totalDebt ?? 0
 
   return (
     <div className="flex flex-col h-full">
@@ -645,7 +621,7 @@ function ProjectDetailInner() {
               <ArrowLeft className="w-3.5 h-3.5" /> Quản lý dự án
             </Link>
             <span className="text-gray-300">/</span>
-            <span className="text-gray-700 font-medium">{project.project_code}</span>
+            <span className="text-gray-700 font-medium">{project.id.toUpperCase()}</span>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setTab("boq")}
@@ -658,34 +634,34 @@ function ProjectDetailInner() {
         <div className="flex items-start gap-4 pb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs text-gray-400 font-mono">{project.project_code}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusBadge[project.project_status] ?? "bg-gray-100 text-gray-600"}`}>
-                {statusText[project.project_status] ?? project.project_status}
+              <span className="text-xs text-gray-400 font-mono">{project.id.toUpperCase()}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${stageBadge[project.stage] ?? "bg-gray-100 text-gray-600"}`}>
+                {stageText[project.stage] ?? project.stage}
               </span>
-              {project.has_building_permit
+              {project.permitOk
                 ? <span className="flex items-center gap-1 text-xs bg-green-50 text-green-600 border border-green-200 px-1.5 py-0.5 rounded-md"><CheckCircle className="w-3 h-3" /> GP thi công</span>
                 : <span className="flex items-center gap-1 text-xs bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded-md"><AlertTriangle className="w-3 h-3" /> Thiếu GP</span>
               }
             </div>
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">{project.project_name}</h1>
+            <h1 className="text-lg font-bold text-gray-900 leading-tight">{project.name}</h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              KH: <span className="text-gray-700 font-medium">{project.customer_name}</span>
-              &nbsp;·&nbsp;{project.customer_phone}
-              &nbsp;·&nbsp;PM: <span className="text-gray-700 font-medium">{project.pm_name}</span>
+              KH: <span className="text-gray-700 font-medium">{project.client}</span>
+              &nbsp;·&nbsp;{project.phone ?? ""}
+              &nbsp;·&nbsp;PM: <span className="text-gray-700 font-medium">{project.pm ?? project.responsible}</span>
             </p>
           </div>
           <div className="shrink-0 text-right hidden sm:block">
             <div className="flex items-center gap-4 text-sm">
-              <div><div className="text-xs text-gray-400">Giá trị HĐ</div><div className="font-bold text-gray-900">{fmtVND(project.contract_value)}</div></div>
-              <div><div className="text-xs text-gray-400">Đã thu</div><div className="font-bold text-green-600">{fmtVND(project.total_paid)}</div></div>
-              <div><div className="text-xs text-gray-400">Còn nợ</div><div className={`font-bold ${project.total_outstanding_debt > 0 ? "text-red-500" : "text-gray-400"}`}>{fmtVND(project.total_outstanding_debt)}</div></div>
+              <div><div className="text-xs text-gray-400">Giá trị HĐ</div><div className="font-bold text-gray-900">{fmtVND(project.value)}</div></div>
+              <div><div className="text-xs text-gray-400">Đã thu</div><div className="font-bold text-green-600">{fmtVND(project.totalPaid ?? 0)}</div></div>
+              <div><div className="text-xs text-gray-400">Còn nợ</div><div className={`font-bold ${debt > 0 ? "text-red-500" : "text-gray-400"}`}>{fmtVND(debt)}</div></div>
               <div className="text-right">
                 <div className="text-xs text-gray-400 mb-1">Tiến độ</div>
                 <div className="flex items-center gap-2">
                   <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${project.progress_pct}%`, backgroundColor: "#EA580C" }} />
+                    <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: "#EA580C" }} />
                   </div>
-                  <span className="text-sm font-bold text-orange-500">{project.progress_pct}%</span>
+                  <span className="text-sm font-bold text-orange-500">{progress}%</span>
                 </div>
               </div>
             </div>
@@ -710,10 +686,10 @@ function ProjectDetailInner() {
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto">
 
-        {/* ── Tab: Vòng đời Timeline ── */}
+        {/* ── Tab: Timeline ── */}
         {tab === "timeline" && (
           <div className="p-6 max-w-[1100px] mx-auto">
-            <NextActionBanner stage={lifecycleStage} surveyCount={3} />
+            <NextActionBanner stage={project.stage} />
 
             <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 300px", alignItems: "start" }}>
               {/* Timeline */}
@@ -730,7 +706,7 @@ function ProjectDetailInner() {
 
               {/* Sidebar */}
               <div className="sticky top-4">
-                <TimelineSidebar project={project} milestones={milestones} vos={vos} boqLines={boqLines} />
+                <TimelineSidebar project={project} milestones={milestones} vos={vos} />
               </div>
             </div>
           </div>
@@ -750,7 +726,6 @@ function ProjectDetailInner() {
               <ProjectFilesTab />
             </div>
           )}
-
         </div>
       </div>
     </div>

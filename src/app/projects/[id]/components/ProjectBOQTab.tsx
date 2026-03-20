@@ -5,14 +5,14 @@ import {
   ChevronDown, ChevronRight, HardHat, Pencil, Trash2,
   X, Check, Download
 } from "lucide-react"
-import { mockBoqLines, fmtVND } from "@/lib/mock-data"
+import { PROJECT_BOQ, fmtVND } from "@/lib/project-data"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Status = "approved" | "pending" | "draft"
 
 interface BOQLine {
   id: number
-  project_id: number
+  projectId: string
   category: string
   item_name: string
   uom: string
@@ -46,9 +46,9 @@ const CONTRACTOR_MAP: Record<string, string> = {
 function numVal(s: string) { return parseFloat(s.replace(/[^0-9.]/g, "")) || 0 }
 
 // ── Seed lines for project ────────────────────────────────────────────────────
-function seedLines(projectId: number): BOQLine[] {
-  return mockBoqLines
-    .filter(l => l.project_id === projectId)
+function seedLines(projectId: string): BOQLine[] {
+  return PROJECT_BOQ
+    .filter(l => l.projectId === projectId)
     .map((l, i) => ({
       ...l,
       status: (["approved","approved","approved","pending","draft","approved","approved","approved","approved"] as Status[])[i] ?? "approved" as Status,
@@ -59,14 +59,14 @@ function seedLines(projectId: number): BOQLine[] {
 // ── Line Modal ────────────────────────────────────────────────────────────────
 function LineModal({ initial, projectId, categories, onSave, onClose }: {
   initial: BOQLine | null
-  projectId: number
+  projectId: string
   categories: string[]
   onSave: (line: BOQLine) => void
   onClose: () => void
 }) {
   const isNew = !initial
   const [form, setForm] = useState<Omit<BOQLine, "id">>(initial ? { ...initial } : {
-    project_id: projectId, category: categories[0] ?? "Phần thô",
+    projectId: projectId, category: categories[0] ?? "Phần thô",
     item_name: "", uom: "m²", qty: 1, cost_price: 0, selling_price: 0,
     progress_pct: 0, margin_warning: false, status: "draft", note: "",
   })
@@ -202,7 +202,7 @@ function DeleteConfirm({ line, onConfirm, onClose }: { line: BOQLine; onConfirm:
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ProjectBOQTab({ projectId }: { projectId: number }) {
+export default function ProjectBOQTab({ projectId }: { projectId: string }) {
   const [lines, setLines] = useState<BOQLine[]>(() => seedLines(projectId))
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")

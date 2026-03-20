@@ -2,9 +2,9 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  LayoutDashboard, AlertCircle,
-  Wallet, Settings, Smartphone, ExternalLink,
-  HardHat, Package, LogOut, ChevronRight, Kanban, FolderOpen, ClipboardCheck, FileText
+  LayoutDashboard,
+  Settings, Smartphone, ExternalLink,
+  HardHat, LogOut, ChevronRight, Kanban
 } from "lucide-react"
 import { useAuth, ROLE_COLORS } from "@/lib/auth-store"
 
@@ -19,24 +19,13 @@ const NAV_GROUPS = [
   {
     label: "Quản lý dự án",
     items: [
-      { href: "/pipeline", label: "Quản lý dự án",    icon: Kanban },
-      { href: "/boq",      label: "Dự toán BOQ",      icon: FileText },
-      { href: "/qa",       label: "QA & Nghiệm thu",  icon: ClipboardCheck },
+      { href: "/pipeline", label: "Quản lý dự án", icon: Kanban },
     ],
   },
   {
-    label: "Hồ sơ",
+    label: "Danh mục",
     items: [
-      { href: "/files", label: "Tài liệu & Bản vẽ", icon: FolderOpen },
-    ],
-  },
-  {
-    label: "Tài chính & Mua sắm",
-    items: [
-      { href: "/payment",      label: "Dòng tiền",      icon: Wallet },
-      { href: "/vo",           label: "Phát sinh (VO)", icon: AlertCircle },
-      { href: "/contractors",  label: "Nhà thầu",       icon: HardHat },
-      { href: "/materials",    label: "Vật tư",         icon: Package },
+      { href: "/contractors", label: "Nhà thầu", icon: HardHat },
     ],
   },
   {

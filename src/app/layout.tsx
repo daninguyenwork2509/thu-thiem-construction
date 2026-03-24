@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi">
-      <body className="bg-gray-50 text-gray-900 antialiased">
+    <html lang="vi" suppressHydrationWarning>
+      <body className="bg-gray-50 text-gray-900 antialiased" suppressHydrationWarning>
         <AppShell>{children}</AppShell>
       </body>
     </html>

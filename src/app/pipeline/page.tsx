@@ -1,5 +1,5 @@
 "use client"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { fmtVND } from "@/lib/mock-data"
 import {
   ArrowRight, ChevronRight, User, Calendar, Plus, Eye,
@@ -13,13 +13,40 @@ import Link from "next/link"
 type Stage = "lead" | "design" | "contract" | "construction" | "payment" | "handover"
 type Priority = "high" | "medium" | "low"
 type ItemType = "lead" | "project"
+type ProjectType = "renovation_apartment" | "renovation_office" | "signage" | "new_build" | "furniture_supply"
 
 interface PipelineItem {
-  id: string; type: ItemType; name: string; client: string
+  id: string; type: ItemType; projectType?: ProjectType; name: string; client: string
   phone?: string; source?: string; value: number; stage: Stage
   responsible: string; responsibleInitials: string; responsibleColor: string
   progress?: number; deadline?: string; priority: Priority
-  tags?: string[]; note?: string; voCount?: number
+  tags?: string[]; note?: string; voCount?: number; permitRequired?: boolean
+  surveyPhotoCount?: number; surveyPhotos?: string[]
+  budgetFlexibility?: "fixed" | "flexible" | "open" | null
+}
+
+const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
+  renovation_apartment: "Cải tạo căn hộ",
+  renovation_office:    "Cải tạo VP",
+  signage:              "Bảng hiệu",
+  new_build:            "Xây mới",
+  furniture_supply:     "Cung cấp nội thất",
+}
+
+const PROJECT_TYPE_EMOJI: Record<ProjectType, string> = {
+  renovation_apartment: "🏠",
+  renovation_office:    "🏢",
+  signage:              "🪧",
+  new_build:            "🏗️",
+  furniture_supply:     "🛋️",
+}
+
+const LEAD_SOURCES = ["Zalo OA", "Referral", "Facebook", "Website", "TikTok"]
+
+interface LeadForm {
+  clientName: string; phone: string; source: string; address: string
+  budget: string
+  flexibility: "fixed" | "flexible" | "open" | ""; notes: string; sales: string
 }
 
 interface VOItem {
@@ -32,48 +59,19 @@ interface VOItem {
 // ── Mock data ─────────────────────────────────────────────────────────────────
 const INIT_ITEMS: PipelineItem[] = [
   {
-    id: "PRJ-2025-001", type: "project",
-    name: "Căn hộ Vinhomes Central Park – Tầng 12",
-    client: "Chị Lan Anh", phone: "0901 234 567",
-    value: 820_000_000, stage: "construction",
+    id: "PRJ-E2E-001", type: "project", projectType: "renovation_apartment",
+    name: "Căn hộ Masteri Thảo Điền – Chị Mai",
+    client: "Chị Mai", phone: "0901 234 567",
+    value: 0, stage: "lead",
     responsible: "Lê Minh Tuấn", responsibleInitials: "TL", responsibleColor: "bg-teal-500",
-    progress: 48, deadline: "2025-05-31", priority: "high",
-    tags: ["Nội thất trễ", "3 VO chờ duyệt"], voCount: 3,
-    note: "Phong cách Nhật tối giản. Không đục kết cấu chịu lực. Thi công sau 18h vì KH WFH.",
-  },
-  {
-    id: "PRJ-2025-002", type: "project",
-    name: "Văn phòng FPT – Châu Thành, An Giang",
-    client: "Cty FPT Telecom", phone: "0908 765 432",
-    value: 259_000_000, stage: "design",
-    responsible: "Phạm Văn Đức", responsibleInitials: "ĐP", responsibleColor: "bg-blue-500",
-    progress: 0, deadline: "2025-04-30", priority: "medium",
-    tags: ["Đang vẽ bản vẽ"],
-    note: "Thi công theo bộ nhận diện FPT. Không làm ngoài giờ hành chính. Bao gồm bảng hiệu + nội thất + điện mạng.",
-  },
-  {
-    id: "PRJ-2025-003", type: "project",
-    name: "Bảng hiệu chuỗi Shophouse Ecopark – Hưng Yên",
-    client: "Cty Đại Phát", phone: "0912 888 999",
-    value: 2_100_000_000, stage: "contract",
-    responsible: "Lê Văn Nam", responsibleInitials: "NL", responsibleColor: "bg-purple-500",
-    progress: 0, deadline: "2025-04-30", priority: "high",
-    tags: ["Chờ phản hồi KH"],
-    note: "12 shophouse, mỗi cái 1 bảng hiệu chính + 1 biển vẫy. Alu chữ nổi, đèn LED âm. Hoàn thành trước 30/04.",
-  },
+    progress: 0, priority: "high",
+    tags: ["Lead mới"], voCount: 0,
+    note: "Khách hàng muốn thiết kế lại toàn bộ căn 2PN, phong cách hiện đại.",
+    permitRequired: true,
+  }
 ]
 
-const INIT_VOS: VOItem[] = [
-  { id: "vo1", projectId: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – Tầng 12",
-    title: "Bổ sung điểm điện phòng làm việc", reason: "Phát sinh 4 ổ cắm + 2 đèn LED theo yêu cầu KH",
-    amount: 6_000_000, status: "pending", requestedBy: "Trần Thị Bình", date: "2025-03-15" },
-  { id: "vo2", projectId: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – Tầng 12",
-    title: "Thay đổi vật liệu sàn phòng ngủ", reason: "KH nâng cấp từ gỗ công nghiệp lên sàn gỗ tự nhiên",
-    amount: 7_500_000, status: "pending", requestedBy: "Lê Minh Tuấn", date: "2025-03-18" },
-  { id: "vo3", projectId: "PRJ-2025-001", projectName: "Căn hộ Vinhomes Central Park – Tầng 12",
-    title: "Thêm vách kính phòng tắm master", reason: "KH muốn thêm vách kính cường lực 10mm phòng tắm",
-    amount: 5_000_000, status: "pending", requestedBy: "Trần Thị Bình", date: "2025-03-20" },
-]
+const INIT_VOS: VOItem[] = []
 
 // ── Configs ───────────────────────────────────────────────────────────────────
 const STAGES: { key: Stage; label: string; sublabel: string; dot: string; badge: string; border: string; header: string; dropBg: string }[] = [
@@ -116,7 +114,32 @@ const EMPTY_FORM: Omit<PipelineItem, "id"> = {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PipelinePage() {
+  const [mounted, setMounted] = useState(false)
   const [items, setItems] = useState<PipelineItem[]>(INIT_ITEMS)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Load dynamic leads (created via form) from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("dynamic_leads")
+      if (!saved) return
+      const leads = JSON.parse(saved) as PipelineItem[]
+      if (leads.length === 0) return
+      setItems(prev => {
+        const merged = [...prev]
+        leads.forEach(l => {
+          const idx = merged.findIndex(m => m.id === l.id)
+          if (idx >= 0) merged[idx] = l
+          else merged.unshift(l)
+        })
+        return merged
+      })
+    } catch { /* ignore */ }
+  }, [])
+
   const [vos] = useState<VOItem[]>(INIT_VOS)
   const [view, setView] = useState<"kanban" | "list" | "vo">("kanban")
   const [search, setSearch] = useState("")
@@ -128,9 +151,19 @@ export default function PipelinePage() {
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverStage, setDragOverStage] = useState<Stage | null>(null)
   // Modal state
-  const [modal, setModal] = useState<"add" | "edit" | "delete" | null>(null)
+  const [modal, setModal] = useState<"edit" | "delete" | null>(null)
   const [selected, setSelected] = useState<PipelineItem | null>(null)
   const [form, setForm] = useState<Omit<PipelineItem, "id">>(EMPTY_FORM)
+  // Lead panel state
+  const [showLeadPanel, setShowLeadPanel] = useState(false)
+  const [leadProjectType, setLeadProjectType] = useState<ProjectType | "">("")
+  const [leadForm, setLeadForm] = useState<LeadForm>({
+    clientName: "", phone: "", source: "", address: "",
+    budget: "", flexibility: "", notes: "", sales: "Phạm Văn Đức"
+  })
+  const [leadErrors, setLeadErrors] = useState<Record<string, string>>({})
+  const [phoneWarning, setPhoneWarning] = useState("")
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "warn" } | null>(null)
 
   // ── Filtered
   const filtered = useMemo(() => items.filter(it => {
@@ -155,7 +188,7 @@ export default function PipelinePage() {
   const pendingVos = vos.filter(v => v.status === "pending").length
 
   // ── CRUD
-  const openAdd = () => { setForm(EMPTY_FORM); setModal("add") }
+  const openAdd = () => { setForm(EMPTY_FORM) } // kept for potential future use
   const openEdit = (item: PipelineItem) => {
     setSelected(item)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -165,18 +198,117 @@ export default function PipelinePage() {
   const openDelete = (item: PipelineItem) => { setSelected(item); setModal("delete") }
   const closeModal = () => { setModal(null); setSelected(null) }
 
+  const showToast = (msg: string, type: "success" | "error" | "warn" = "success") => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const openLeadPanel = () => {
+    setLeadProjectType("")
+    setLeadForm({ clientName: "", phone: "", source: "", address: "", budget: "", flexibility: "", notes: "", sales: "Phạm Văn Đức" })
+    setLeadErrors({})
+    setPhoneWarning("")
+    setShowLeadPanel(true)
+  }
+
+  const handleLeadSubmit = () => {
+    const errors: Record<string, string> = {}
+    if (!leadForm.clientName.trim()) errors.clientName = "Vui lòng điền thông tin này"
+    if (!leadForm.phone.trim()) errors.phone = "Vui lòng điền thông tin này"
+    else if (!/^\d{10}$/.test(leadForm.phone.replace(/\s|-/g, ""))) errors.phone = "SĐT phải có 10 chữ số"
+    if (!leadForm.address.trim()) errors.address = "Vui lòng điền thông tin này"
+    if (!leadProjectType) errors.projectType = "Vui lòng chọn loại dự án"
+    if (!leadForm.budget || Number(leadForm.budget) <= 0) errors.budget = "Vui lòng điền ngân sách"
+    setLeadErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    // Phone duplicate check (warning, not blocking)
+    const phoneClean = leadForm.phone.replace(/\s|-/g, "")
+    const dup = items.find(i => i.phone?.replace(/\s|-/g, "") === phoneClean)
+    setPhoneWarning(dup ? `⚠ SĐT này đã có trong hệ thống – ${dup.name}` : "")
+
+    const FLEXIBILITY_LABEL: Record<string, string> = {
+      fixed: "Ngân sách cố định",
+      flexible: "Linh hoạt ±20%",
+      open: "Ngân sách mở",
+    }
+    const flexLabel = leadForm.flexibility ? FLEXIBILITY_LABEL[leadForm.flexibility] : null
+    const noteLines = [
+      flexLabel ? `💰 Ngân sách: ${flexLabel}` : null,
+      leadForm.address ? `📍 Địa chỉ: ${leadForm.address}` : null,
+      leadForm.notes || null,
+    ].filter(Boolean)
+
+    const pt = leadProjectType as ProjectType
+    const addressShort = leadForm.address.split(",")[0].trim()
+    const resp = RESPONSIBLE_OPTIONS.find(r => r.name === leadForm.sales) ?? RESPONSIBLE_OPTIONS[0]
+    const newId = `PRJ-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`
+    const newItem: PipelineItem = {
+      id: newId,
+      type: "lead",
+      projectType: pt,
+      name: `${PROJECT_TYPE_LABEL[pt]} – ${addressShort}`,
+      client: leadForm.clientName,
+      phone: leadForm.phone,
+      source: leadForm.source || undefined,
+      value: Number(leadForm.budget),
+      stage: "lead",
+      responsible: resp.name,
+      responsibleInitials: resp.initials,
+      responsibleColor: resp.color,
+      priority: "medium",
+      note: noteLines.length > 0 ? noteLines.join("\n") : undefined,
+      budgetFlexibility: leadForm.flexibility || "fixed",
+      permitRequired: false,
+      progress: 0,
+    }
+    // Persist to localStorage — include budgetFlexibility as a custom field
+    try {
+      const stored: PipelineItem[] = JSON.parse(localStorage.getItem("dynamic_leads") ?? "[]")
+      localStorage.setItem("dynamic_leads", JSON.stringify([
+        { ...newItem, lifecycleStage: "lead_new" },
+        ...stored,
+      ]))
+    } catch { /* quota exceeded */ }
+
+    setItems(prev => [newItem, ...prev])
+    setShowLeadPanel(false)
+    setFilterType("all")
+    setFilterStage("all")
+    setSearch("")
+    showToast("✓ Lead đã tạo · Task khảo sát đã giao", "success")
+  }
+
   const handleSave = () => {
     if (!form.name.trim() || !form.client.trim()) return
-    if (modal === "add") {
-      setItems(prev => [...prev, { ...form, id: `item_${Date.now()}` }])
-    } else if (modal === "edit" && selected) {
-      setItems(prev => prev.map(it => it.id === selected.id ? { ...form, id: it.id } : it))
+    if (modal === "edit" && selected) {
+      const updated = { ...form, id: selected.id }
+      setItems(prev => prev.map(it => it.id === selected.id ? updated : it))
+      try {
+        const saved: PipelineItem[] = JSON.parse(localStorage.getItem("dynamic_leads") ?? "[]")
+        const idx = saved.findIndex(l => l.id === selected.id)
+        if (idx >= 0) {
+          saved[idx] = updated as PipelineItem
+        } else {
+          saved.push(updated as PipelineItem)
+        }
+        localStorage.setItem("dynamic_leads", JSON.stringify(saved))
+      } catch { /* ignore */ }
     }
     closeModal()
   }
 
   const handleDelete = () => {
-    if (selected) setItems(prev => prev.filter(it => it.id !== selected.id))
+    if (!selected) { closeModal(); return }
+    const deletedId = selected.id
+    setItems(prev => prev.filter(it => it.id !== deletedId))
+    // Remove from localStorage
+    try {
+      const saved: object[] = JSON.parse(localStorage.getItem("dynamic_leads") ?? "[]")
+      localStorage.setItem("dynamic_leads", JSON.stringify(
+        saved.filter((l: unknown) => (l as { id: string }).id !== deletedId)
+      ))
+    } catch { /* ignore */ }
     closeModal()
   }
 
@@ -211,6 +343,8 @@ export default function PipelinePage() {
     { key: "vo"     as const, label: `Phát sinh VO${pendingVos > 0 ? ` (${pendingVos})` : ""}`, icon: AlertCircle },
   ]
 
+  if (!mounted) return null
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* ── Header ── */}
@@ -221,8 +355,16 @@ export default function PipelinePage() {
             <p className="text-xs text-gray-400 mt-0.5">Toàn bộ lead & dự án theo từng giai đoạn</p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => {
+              if (confirm("Thao tác này sẽ xoá TOÀN BỘ dữ liệu local storage (Dự án mới, Tiến độ Gantt, Hợp đồng...) để test E2E lại từ đầu. Bạn chắc chắn?")) {
+                localStorage.clear();
+                window.location.reload();
+              }
+            }} className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold rounded-lg transition-colors shadow-sm">
+              <Trash2 className="w-3.5 h-3.5" /> Xoá & Khôi phục Dữ liệu E2E
+            </button>
             {view !== "vo" && (
-              <button onClick={openAdd}
+              <button onClick={openLeadPanel}
                 className="flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm">
                 <Plus className="w-3.5 h-3.5" /> Thêm mới
               </button>
@@ -297,7 +439,10 @@ export default function PipelinePage() {
 
       {/* ── Kanban View ── */}
       {view === "kanban" && (
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="relative flex-1 overflow-hidden">
+          {/* Right-edge gradient scroll hint */}
+          <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-gray-100/80 to-transparent z-10 pointer-events-none" />
+          <div className="flex-1 h-full overflow-x-auto overflow-y-hidden scroll-smooth pb-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#d1d5db transparent" }}>
           <div className="flex gap-3 p-4 h-full" style={{ minWidth: "max-content" }}>
             {STAGES.map((stage, stageIdx) => {
               const stageItems = filtered.filter(c => c.stage === stage.key)
@@ -344,6 +489,7 @@ export default function PipelinePage() {
                 </div>
               )
             })}
+          </div>
           </div>
         </div>
       )}
@@ -470,220 +616,490 @@ export default function PipelinePage() {
 
       {/* ── VO View ── */}
       {view === "vo" && (
-        <div className="flex-1 overflow-auto p-5">
-          {/* VO filter */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="relative flex-1 max-w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input value={voSearch} onChange={e => setVoSearch(e.target.value)}
-                placeholder="Tìm VO, dự án…"
-                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:border-orange-400 focus:outline-none" />
-            </div>
-            <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs">
-              {(["all", "pending", "approved", "rejected"] as const).map(s => (
-                <button key={s} onClick={() => setVoFilter(s)}
-                  className={`px-3 py-1.5 rounded-md font-medium transition-all ${voFilter === s ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-                  {s === "all" ? "Tất cả" : VO_STATUS[s].label}
+        <VOView vos={vos} voSearch={voSearch} setVoSearch={setVoSearch} voFilter={voFilter} setVoFilter={setVoFilter} filteredVos={filteredVos} />
+      )}
+
+      {/* ── Modals & Panels ── */}
+      {modal === "edit" && (
+        <EditModal 
+          form={form} 
+          setForm={setForm} 
+          closeModal={closeModal} 
+          handleSave={handleSave} 
+          setFormResponsible={setFormResponsible}
+        />
+      )}
+
+      {modal === "delete" && selected && (
+        <DeleteModal selected={selected} closeModal={closeModal} handleDelete={handleDelete} />
+      )}
+
+      {showLeadPanel && (
+        <NewLeadPanel 
+          leadForm={leadForm} 
+          setLeadForm={setLeadForm} 
+          leadErrors={leadErrors} 
+          phoneWarning={phoneWarning} 
+          setPhoneWarning={setPhoneWarning}
+          leadProjectType={leadProjectType}
+          setLeadProjectType={setLeadProjectType}
+          setShowLeadPanel={setShowLeadPanel}
+          handleLeadSubmit={handleLeadSubmit}
+        />
+      )}
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl z-[100] ${
+          toast.type === "success" ? "bg-emerald-600 text-white" :
+          toast.type === "error" ? "bg-red-600 text-white" : "bg-amber-500 text-white"
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── VO View ──────────────────────────────────────────────────────────────────
+function VOView({ vos, voSearch, setVoSearch, voFilter, setVoFilter, filteredVos }: any) {
+  return (
+    <div className="flex-1 overflow-auto p-5">
+      {/* VO filter */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-64">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input value={voSearch} onChange={e => setVoSearch(e.target.value)}
+            placeholder="Tìm VO, dự án…"
+            className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:border-orange-400 focus:outline-none" />
+        </div>
+        <div className="flex bg-gray-100 rounded-lg p-0.5 text-xs">
+          {(["all", "pending", "approved", "rejected"] as const).map(s => (
+            <button key={s} onClick={() => setVoFilter(s)}
+              className={`px-3 py-1.5 rounded-md font-medium transition-all ${voFilter === s ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+              {s === "all" ? "Tất cả" : VO_STATUS[s].label}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto text-xs text-gray-400">{filteredVos.length} phát sinh</div>
+      </div>
+
+      {/* VO summary cards */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[
+          { label: "Tổng VO",     value: vos.length,                                sub: `${fmtVND(vos.reduce((s:any,v:any)=>s+v.amount,0))}`,     color: "text-gray-700" },
+          { label: "Chờ duyệt",   value: vos.filter((v:any)=>v.status==="pending").length, sub: `${fmtVND(vos.filter((v:any)=>v.status==="pending").reduce((s:any,v:any)=>s+v.amount,0))}`, color: "text-yellow-600" },
+          { label: "Đã duyệt",    value: vos.filter((v:any)=>v.status==="approved").length, sub: `${fmtVND(vos.filter((v:any)=>v.status==="approved").reduce((s:any,v:any)=>s+v.amount,0))}`, color: "text-green-600" },
+        ].map(k => (
+          <div key={k.label} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+            <div className="text-xs text-gray-400">{k.label}</div>
+            <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{k.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th className="text-left">Dự án</th>
+              <th className="text-left">Nội dung phát sinh</th>
+              <th className="text-left">Lý do</th>
+              <th className="text-right">Giá trị</th>
+              <th className="text-left">Trạng thái</th>
+              <th className="text-left">Người yêu cầu</th>
+              <th className="text-left">Ngày</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredVos.map((vo:any) => {
+              const st = VO_STATUS[vo.status as keyof typeof VO_STATUS]
+              return (
+                <tr key={vo.id}>
+                  <td>
+                    <div className="text-xs font-semibold text-gray-700 max-w-[180px] truncate">{vo.projectName}</div>
+                  </td>
+                  <td>
+                    <div className="text-sm font-medium text-gray-900 max-w-[220px]">{vo.title}</div>
+                  </td>
+                  <td>
+                    <div className="text-xs text-gray-500 max-w-[200px] line-clamp-2">{vo.reason}</div>
+                  </td>
+                  <td className="text-right font-semibold text-orange-600">{fmtVND(vo.amount)}</td>
+                  <td>
+                    <span className={`text-xs px-2 py-0.5 rounded-md font-semibold ${st.color}`}>{st.label}</span>
+                  </td>
+                  <td className="text-xs text-gray-600">{vo.requestedBy}</td>
+                  <td className="text-xs text-gray-500">{new Date(vo.date).toLocaleDateString("vi-VN")}</td>
+                </tr>
+              )
+            })}
+            {filteredVos.length === 0 && (
+              <tr><td colSpan={7} className="text-center py-10 text-gray-400 text-sm">Không có phát sinh nào</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ── Edit Modal ────────────────────────────────────────────────────────────────
+function EditModal({ form, setForm, closeModal, handleSave, setFormResponsible }: any) {
+  const [valueInput, setValueInput] = useState((form.value || 0).toLocaleString("vi-VN"))
+  const SOURCE_OPTIONS = ["Facebook", "Website", "Hotline", "Referral", "Walk-in"]
+  const [isCustomSource, setIsCustomSource] = useState(!!form.source && !SOURCE_OPTIONS.includes(form.source))
+
+  const handleValueChange = (v: string) => {
+    const raw = v.replace(/[^0-9]/g, "")
+    const num = Number(raw)
+    setForm((f:any) => ({ ...f, value: num }))
+    setValueInput(num.toLocaleString("vi-VN"))
+  }
+
+  return (
+    <div className="modal-overlay" onClick={closeModal}>
+      <div className="modal-box max-w-lg" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-bold text-gray-900">Chỉnh sửa thông tin</h2>
+          <button onClick={closeModal} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Loại</label>
+            <div className="flex gap-2">
+              {(["lead", "project"] as const).map(t => (
+                <button key={t} onClick={() => setForm((f:any) => ({ ...f, type: t }))}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border-2 transition-all ${form.type === t ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                  {t === "lead" ? "Lead (Tiềm năng)" : "Dự án (Đã HĐ)"}
                 </button>
               ))}
             </div>
-            <div className="ml-auto text-xs text-gray-400">{filteredVos.length} phát sinh</div>
           </div>
-
-          {/* VO summary cards */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {[
-              { label: "Tổng VO",     value: vos.length,                                sub: `${fmtVND(vos.reduce((s,v)=>s+v.amount,0))}`,     color: "text-gray-700" },
-              { label: "Chờ duyệt",   value: vos.filter(v=>v.status==="pending").length, sub: `${fmtVND(vos.filter(v=>v.status==="pending").reduce((s,v)=>s+v.amount,0))}`, color: "text-yellow-600" },
-              { label: "Đã duyệt",    value: vos.filter(v=>v.status==="approved").length, sub: `${fmtVND(vos.filter(v=>v.status==="approved").reduce((s,v)=>s+v.amount,0))}`, color: "text-green-600" },
-            ].map(k => (
-              <div key={k.label} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-                <div className="text-xs text-gray-400">{k.label}</div>
-                <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{k.sub}</div>
-              </div>
-            ))}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tên công trình <span className="text-red-400">*</span></label>
+            <input value={form.name} onChange={e => setForm((f:any) => ({ ...f, name: e.target.value }))}
+              placeholder="VD: Nhà phố 4 tầng – Bình Thạnh" className="input-field text-sm" />
           </div>
-
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th className="text-left">Dự án</th>
-                  <th className="text-left">Nội dung phát sinh</th>
-                  <th className="text-left">Lý do</th>
-                  <th className="text-right">Giá trị</th>
-                  <th className="text-left">Trạng thái</th>
-                  <th className="text-left">Người yêu cầu</th>
-                  <th className="text-left">Ngày</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredVos.map(vo => {
-                  const st = VO_STATUS[vo.status]
-                  return (
-                    <tr key={vo.id}>
-                      <td>
-                        <div className="text-xs font-semibold text-gray-700 max-w-[180px] truncate">{vo.projectName}</div>
-                      </td>
-                      <td>
-                        <div className="text-sm font-medium text-gray-900 max-w-[220px]">{vo.title}</div>
-                      </td>
-                      <td>
-                        <div className="text-xs text-gray-500 max-w-[200px] line-clamp-2">{vo.reason}</div>
-                      </td>
-                      <td className="text-right font-semibold text-orange-600">{fmtVND(vo.amount)}</td>
-                      <td>
-                        <span className={`text-xs px-2 py-0.5 rounded-md font-semibold ${st.color}`}>{st.label}</span>
-                      </td>
-                      <td className="text-xs text-gray-600">{vo.requestedBy}</td>
-                      <td className="text-xs text-gray-500">{new Date(vo.date).toLocaleDateString("vi-VN")}</td>
-                    </tr>
-                  )
-                })}
-                {filteredVos.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-10 text-gray-400 text-sm">Không có phát sinh nào</td></tr>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Khách hàng <span className="text-red-400">*</span></label>
+              <input value={form.client} onChange={e => setForm((f:any) => ({ ...f, client: e.target.value }))}
+                placeholder="Nguyễn Văn A" className="input-field text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Số điện thoại</label>
+              <input value={form.phone ?? ""} onChange={e => setForm((f:any) => ({ ...f, phone: e.target.value }))}
+                placeholder="0901 234 567" className="input-field text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Giá trị (VNĐ)</label>
+              <input type="text" value={valueInput}
+                onChange={e => handleValueChange(e.target.value)}
+                placeholder="800,000,000" className="input-field text-sm font-bold text-orange-600" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Nguồn / Kênh</label>
+              <div className="flex flex-col gap-1.5">
+                <select 
+                  value={isCustomSource ? "Other" : (form.source || "")} 
+                  onChange={e => {
+                    if (e.target.value === "Other") {
+                      setIsCustomSource(true)
+                      setForm((f:any) => ({ ...f, source: "" }))
+                    } else {
+                      setIsCustomSource(false)
+                      setForm((f:any) => ({ ...f, source: e.target.value }))
+                    }
+                  }}
+                  className="input-field text-sm"
+                >
+                  <option value="">-- Chọn nguồn --</option>
+                  {SOURCE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  <option value="Other">Khác...</option>
+                </select>
+                {isCustomSource && (
+                  <input type="text" value={form.source ?? ""} onChange={e => setForm((f:any) => ({ ...f, source: e.target.value }))}
+                    placeholder="Nhập nguồn khác..."
+                    className="input-field text-[10px] py-1 !h-auto" />
                 )}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Giai đoạn</label>
+              <div className="relative">
+                <select value={form.stage} onChange={e => setForm((f:any) => ({ ...f, stage: e.target.value as Stage }))}
+                  className="input-field text-sm appearance-none pr-8">
+                  {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ưu tiên</label>
+              <div className="relative">
+                <select value={form.priority} onChange={e => setForm((f:any) => ({ ...f, priority: e.target.value as Priority }))}
+                  className="input-field text-sm appearance-none pr-8">
+                  <option value="high">Cao</option>
+                  <option value="medium">Trung bình</option>
+                  <option value="low">Thấp</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Phụ trách</label>
+              <div className="relative">
+                <select value={form.responsible} onChange={e => setFormResponsible(e.target.value)}
+                  className="input-field text-sm appearance-none pr-8">
+                  {RESPONSIBLE_OPTIONS.map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Deadline</label>
+              <input type="date" value={form.deadline ?? ""} onChange={e => setForm((f:any) => ({ ...f, deadline: e.target.value }))}
+                className="input-field text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ghi chú</label>
+            <textarea value={form.note ?? ""} onChange={e => setForm((f:any) => ({ ...f, note: e.target.value }))}
+              rows={2} placeholder="Thông tin thêm…" className="input-field text-sm resize-none" />
           </div>
         </div>
-      )}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
+          <button onClick={closeModal} className="btn-secondary text-sm px-4 py-2">Hủy</button>
+          <button onClick={handleSave} disabled={!form.name.trim() || !form.client.trim()}
+            className="btn-primary text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            Lưu thay đổi
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-      {/* ── Add / Edit Modal ── */}
-      {(modal === "add" || modal === "edit") && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900">
-                {modal === "add" ? "Thêm lead / dự án mới" : "Chỉnh sửa thông tin"}
-              </h2>
-              <button onClick={closeModal} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="px-6 py-5 space-y-4">
+// ── Delete Modal ──────────────────────────────────────────────────────────────
+function DeleteModal({ selected, closeModal, handleDelete }: any) {
+  return (
+    <div className="modal-overlay" onClick={closeModal}>
+      <div className="modal-box max-w-sm" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-6 text-center">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-6 h-6 text-red-500" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-1">Xóa mục này?</h3>
+          <p className="text-sm text-gray-500 mb-1"><span className="font-semibold text-gray-700">{selected.name}</span></p>
+          <p className="text-xs text-gray-400">Hành động này không thể hoàn tác.</p>
+        </div>
+        <div className="flex gap-2 px-6 pb-6">
+          <button onClick={closeModal} className="btn-secondary flex-1 justify-center">Hủy</button>
+          <button onClick={handleDelete}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
+            <Trash2 className="w-3.5 h-3.5" /> Xóa
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── New Lead Panel ────────────────────────────────────────────────────────────
+function NewLeadPanel({ 
+  leadForm, setLeadForm, leadErrors, phoneWarning, setPhoneWarning, 
+  leadProjectType, setLeadProjectType, setShowLeadPanel, handleLeadSubmit 
+}: any) {
+  const [budgetInput, setBudgetInput] = useState(leadForm.budget ? Number(leadForm.budget).toLocaleString("vi-VN") : "")
+  const [isCustomSource, setIsCustomSource] = useState(!!leadForm.source && !LEAD_SOURCES.includes(leadForm.source))
+
+  const handleBudgetChange = (v: string) => {
+    const raw = v.replace(/[^0-9]/g, "")
+    setLeadForm((f:any) => ({ ...f, budget: raw }))
+    setBudgetInput(raw ? Number(raw).toLocaleString("vi-VN") : "")
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-40"
+      onClick={(e) => { if (e.target === e.currentTarget) setShowLeadPanel(false) }}>
+      <div className="absolute top-0 right-0 w-[480px] h-full bg-white shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        style={{ animation: "slideInRight 0.2s ease" }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Thêm Lead mới</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Điền thông tin để tạo lead trong hệ thống</p>
+          </div>
+          <button onClick={() => setShowLeadPanel(false)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-5 space-y-6">
+
+          {/* Section 1 – Thông tin KH */}
+          <div>
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Thông tin khách hàng</div>
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Loại</label>
-                <div className="flex gap-2">
-                  {(["lead", "project"] as const).map(t => (
-                    <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))}
-                      className={`flex-1 py-2 text-sm font-medium rounded-lg border-2 transition-all ${form.type === t ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-                      {t === "lead" ? "Lead (Tiềm năng)" : "Dự án (Đã HĐ)"}
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Tên KH / Công ty <span className="text-red-400">*</span></label>
+                <input value={leadForm.clientName} onChange={e => setLeadForm((f:any) => ({ ...f, clientName: e.target.value }))}
+                  placeholder="VD: Chị Lan Anh, Cty ABC..."
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-orange-400 transition ${leadErrors.clientName ? "border-red-400 bg-red-50" : "border-gray-200"}`} />
+                {leadErrors.clientName && <p className="text-xs text-red-500 mt-1">{leadErrors.clientName}</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Số điện thoại <span className="text-red-400">*</span></label>
+                <input value={leadForm.phone} onChange={e => { setLeadForm((f:any) => ({ ...f, phone: e.target.value })); setPhoneWarning("") }}
+                  placeholder="0901 234 567" type="tel"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-orange-400 transition ${leadErrors.phone ? "border-red-400 bg-red-50" : "border-gray-200"}`} />
+                {leadErrors.phone && <p className="text-xs text-red-500 mt-1">{leadErrors.phone}</p>}
+                {phoneWarning && <p className="text-xs text-amber-600 mt-1">{phoneWarning}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nguồn Lead</label>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="relative">
+                      <select 
+                        value={isCustomSource ? "Other" : leadForm.source} 
+                        onChange={e => {
+                          if (e.target.value === "Other") {
+                            setIsCustomSource(true)
+                            setLeadForm((f:any) => ({ ...f, source: "" }))
+                          } else {
+                            setIsCustomSource(false)
+                            setLeadForm((f:any) => ({ ...f, source: e.target.value }))
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg appearance-none focus:outline-none focus:border-orange-400 bg-white"
+                      >
+                        <option value="">-- Chọn nguồn --</option>
+                        {LEAD_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                        <option value="Other">Khác...</option>
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    </div>
+                    {isCustomSource && (
+                      <input type="text" value={leadForm.source} onChange={e => setLeadForm((f:any) => ({ ...f, source: e.target.value }))}
+                        placeholder="Nhập nguồn khác..."
+                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 transition" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Địa chỉ thi công <span className="text-red-400">*</span></label>
+                  <input value={leadForm.address} onChange={e => setLeadForm((f:any) => ({ ...f, address: e.target.value }))}
+                    placeholder="Quận/Phường, Thành phố"
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-orange-400 transition ${leadErrors.address ? "border-red-400 bg-red-50" : "border-gray-200"}`} />
+                  {leadErrors.address && <p className="text-xs text-red-500 mt-1">{leadErrors.address}</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2 – Loại dự án */}
+          <div>
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Loại dự án <span className="text-red-400">*</span></div>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: "renovation_apartment", emoji: "🏠", label: "Cải tạo căn hộ" },
+                { value: "renovation_office",    emoji: "🏢", label: "Cải tạo VP" },
+                { value: "signage",              emoji: "🪧", label: "Bảng hiệu" },
+                { value: "new_build",            emoji: "🏗️", label: "Xây mới" },
+                { value: "furniture_supply",     emoji: "🛋️", label: "Cung cấp nội thất" },
+              ] as { value: ProjectType; emoji: string; label: string }[]).map(({ value, emoji, label }) => (
+                <button
+                  type="button"
+                  key={value}
+                  onClick={() => setLeadProjectType(value)}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium text-left transition ${leadProjectType === value ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-600 hover:border-orange-300"}`}
+                >
+                  <span className="text-lg">{emoji}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+            {leadErrors.projectType && <p className="text-xs text-red-500 mt-2">{leadErrors.projectType}</p>}
+          </div>
+
+          {/* Section 3 – Ngân sách */}
+          <div>
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Ngân sách</div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Ngân sách kỳ vọng (₫) <span className="text-red-400">*</span></label>
+                <input type="text" value={budgetInput} onChange={e => handleBudgetChange(e.target.value)}
+                  placeholder="VD: 500,000,000"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-orange-400 transition font-bold text-orange-600 ${leadErrors.budget ? "border-red-400 bg-red-50" : "border-gray-200"}`} />
+                {leadErrors.budget && <p className="text-xs text-red-500 mt-1">{leadErrors.budget}</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Mức độ linh hoạt</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([["fixed", "Cố định"], ["flexible", "Linh hoạt ±20%"], ["open", "Mở"]] as const).map(([val, label]) => (
+                    <button key={val} onClick={() => setLeadForm((f:any) => ({ ...f, flexibility: val }))}
+                      className={`py-2 px-3 rounded-lg border-2 text-xs font-medium transition ${leadForm.flexibility === val ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500 hover:border-orange-300"}`}>
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tên công trình <span className="text-red-400">*</span></label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="VD: Nhà phố 4 tầng – Bình Thạnh" className="input-field text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Khách hàng <span className="text-red-400">*</span></label>
-                  <input value={form.client} onChange={e => setForm(f => ({ ...f, client: e.target.value }))}
-                    placeholder="Nguyễn Văn A" className="input-field text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Số điện thoại</label>
-                  <input value={form.phone ?? ""} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    placeholder="0901 234 567" className="input-field text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Giá trị (VNĐ)</label>
-                  <input type="number" value={form.value || ""}
-                    onChange={e => setForm(f => ({ ...f, value: Number(e.target.value) }))}
-                    placeholder="800000000" className="input-field text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Nguồn / Kênh</label>
-                  <input value={form.source ?? ""} onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
-                    placeholder="Facebook, Zalo, Referral…" className="input-field text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Giai đoạn</label>
-                  <div className="relative">
-                    <select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value as Stage }))}
-                      className="input-field text-sm appearance-none pr-8">
-                      {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ưu tiên</label>
-                  <div className="relative">
-                    <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Priority }))}
-                      className="input-field text-sm appearance-none pr-8">
-                      <option value="high">Cao</option>
-                      <option value="medium">Trung bình</option>
-                      <option value="low">Thấp</option>
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Phụ trách</label>
-                  <div className="relative">
-                    <select value={form.responsible} onChange={e => setFormResponsible(e.target.value)}
-                      className="input-field text-sm appearance-none pr-8">
-                      {RESPONSIBLE_OPTIONS.map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Deadline</label>
-                  <input type="date" value={form.deadline ?? ""} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
-                    className="input-field text-sm" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ghi chú</label>
-                <textarea value={form.note ?? ""} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-                  rows={2} placeholder="Thông tin thêm…" className="input-field text-sm resize-none" />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
-              <button onClick={closeModal} className="btn-secondary text-sm px-4 py-2">Hủy</button>
-              <button onClick={handleSave} disabled={!form.name.trim() || !form.client.trim()}
-                className="btn-primary text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                {modal === "add" ? "Thêm mới" : "Lưu thay đổi"}
-              </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ── Delete Confirm ── */}
-      {modal === "delete" && selected && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box max-w-sm" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-6 text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-6 h-6 text-red-500" />
+          {/* Section 4 – Ghi chú */}
+          <div>
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Ghi chú & Phân công</div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Yêu cầu đặc biệt</label>
+                <textarea value={leadForm.notes} onChange={e => setLeadForm((f:any) => ({ ...f, notes: e.target.value }))}
+                  rows={3} placeholder="Phong cách, vật liệu đặc biệt, thời gian thi công…"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 resize-none transition" />
               </div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">Xóa mục này?</h3>
-              <p className="text-sm text-gray-500 mb-1"><span className="font-semibold text-gray-700">{selected.name}</span></p>
-              <p className="text-xs text-gray-400">Hành động này không thể hoàn tác.</p>
-            </div>
-            <div className="flex gap-2 px-6 pb-6">
-              <button onClick={closeModal} className="btn-secondary flex-1 justify-center">Hủy</button>
-              <button onClick={handleDelete}
-                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
-                <Trash2 className="w-3.5 h-3.5" /> Xóa
-              </button>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Sales phụ trách</label>
+                <div className="relative">
+                  <select value={leadForm.sales} onChange={e => setLeadForm((f:any) => ({ ...f, sales: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg appearance-none focus:outline-none focus:border-orange-400 bg-white">
+                    {RESPONSIBLE_OPTIONS.map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="flex items-center gap-2 shrink-0" style={{ position: "sticky", bottom: 0, background: "white", padding: "16px 20px", borderTop: "1px solid #E5E7EB", zIndex: 10 }}>
+          <button onClick={() => setShowLeadPanel(false)}
+            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition">
+            Huỷ
+          </button>
+          <button onClick={handleLeadSubmit}
+            className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition"
+            style={{ background: "#EA580C" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#C2410C")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#EA580C")}>
+            Lưu Lead →
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
     </div>
   )
 }
@@ -710,9 +1126,11 @@ function KanbanCard({ item, isDragging, stageIdx, totalStages, onDragStart, onDr
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${stage.badge}`}>
             {item.type === "lead" ? "Lead" : "Dự án"}
           </span>
-          {item.tags?.slice(0, 1).map(t => (
-            <span key={t} className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md">{t}</span>
-          ))}
+          {item.projectType && (
+            <span className="text-[10px] font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+              {PROJECT_TYPE_LABEL[item.projectType]}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={onEdit} className="p-1 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded transition-colors">
@@ -771,14 +1189,13 @@ function KanbanCard({ item, isDragging, stageIdx, totalStages, onDragStart, onDr
       </div>
 
       {/* View detail link */}
-      {item.type === "project" && (
-        <div className="mt-2 pt-2 border-t border-gray-50 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Link href={`/projects/${item.id}`}
-            className="flex items-center justify-center gap-1 py-1 text-[10px] text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors">
-            <Eye className="w-3 h-3" /> Xem chi tiết dự án
-          </Link>
-        </div>
-      )}
+      <div className="mt-2 pt-2 border-t border-gray-50 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Link href={`/projects/${item.id}`}
+          onClick={e => e.stopPropagation()}
+          className="flex items-center justify-center gap-1 py-1 text-[10px] text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors">
+          <Eye className="w-3 h-3" /> {item.type === "lead" ? "Xem Lead chi tiết" : "Xem chi tiết dự án"}
+        </Link>
+      </div>
     </div>
   )
 }

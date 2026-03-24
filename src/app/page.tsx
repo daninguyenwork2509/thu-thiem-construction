@@ -9,16 +9,15 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-// ── Historical revenue (không liên quan project-specific, giữ nguyên) ─────────
+// ── Historical revenue – 6 tháng thực tế từ PRJ-2025-001 ─────────────────────
+// T2/26: Thu đợt 1 (328tr) | T3/26: Thu đợt 2 (164tr) | Tổng: 492tr / 230tr / 262tr
 const MONTHLY = [
-  { month: "T8/25",  revenue: 1200, cost: 900  },
-  { month: "T9/25",  revenue: 1500, cost: 1100 },
-  { month: "T10/25", revenue: 980,  cost: 720  },
-  { month: "T11/25", revenue: 2100, cost: 1550 },
-  { month: "T12/25", revenue: 1750, cost: 1280 },
-  { month: "T1/26",  revenue: 2300, cost: 1700 },
-  { month: "T2/26",  revenue: 1900, cost: 1400 },
-  { month: "T3/26",  revenue: 2450, cost: 1800 },
+  { month: "T10/25", revenue: 0,   cost: 0   },
+  { month: "T11/25", revenue: 0,   cost: 0   },
+  { month: "T12/25", revenue: 0,   cost: 0   },
+  { month: "T1/26",  revenue: 0,   cost: 0   },
+  { month: "T2/26",  revenue: 328, cost: 150 },
+  { month: "T3/26",  revenue: 164, cost: 80  },
 ]
 
 // ── Data từ 3 dự án thực tế ───────────────────────────────────────────────────

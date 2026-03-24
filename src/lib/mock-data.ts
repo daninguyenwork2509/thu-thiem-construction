@@ -131,5 +131,6 @@ export const statusLabels: Record<string, string> = {
   pending_approval: "Chờ duyệt",
 }
 
-export const fmtVND = (n: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n)
+export const fmtVND = (n: number) => {
+  return n.toLocaleString("vi-VN") + " ₫"
+}

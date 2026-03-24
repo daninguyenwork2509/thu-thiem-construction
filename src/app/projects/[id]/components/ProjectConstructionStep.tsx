@@ -192,51 +192,39 @@ export default function ProjectConstructionStep({
       </div>
 
       {/* Category Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {groups.map(g => {
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {groups.map((g, idx) => {
           const items = g.subGroups.flatMap(sg => sg.items)
           const total = items.length
-          const done = items.filter(i => i.status === "done").length
+          const doneOrMore = items.filter(i => i.status === "done" || i.status === "approved").length
           const approved = items.filter(i => i.status === "approved").length
           const pct = total > 0 ? Math.round(items.reduce((s, i) => s + (i.progress || 0), 0) / total) : 0
           
+          const RomanId = ["I", "II", "III", "IV", "V", "VI", "VII"][idx] || (idx + 1)
+
           return (
-            <div key={g.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-8 rounded-full ${pct === 100 ? "bg-green-500" : "bg-orange-500"}`} />
-                  <div>
-                    <div className="text-xs font-bold text-gray-800 uppercase tracking-tight line-clamp-1">{g.name}</div>
-                    <div className="text-[10px] text-gray-400 font-medium">{g.subGroups.length} phân nhóm · {total} hạng mục</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-black text-gray-800">{pct}%</div>
-                  <div className="text-[10px] text-gray-400 uppercase font-bold">Tiến độ</div>
-                </div>
+            <div key={g.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:shadow-md transition">
+              <div className="text-[10px] font-bold text-gray-500 mb-1 truncate" title={g.name}>
+                {RomanId}. {g.name}
               </div>
               
-              <div className="space-y-3">
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+              <div className="flex items-center justify-between mb-2">
+                <div className={`text-lg font-black ${pct === 100 ? "text-green-600" : pct > 0 ? "text-orange-600" : "text-gray-400"}`}>
+                  {pct}%
                 </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-100/50">
-                    <div className="text-[10px] text-blue-600 font-bold uppercase mb-0.5">Đã xong (GS)</div>
-                    <div className="flex items-end gap-1">
-                      <span className="text-sm font-bold text-blue-700">{done + approved}</span>
-                      <span className="text-[10px] text-blue-400 mb-0.5">/ {total}</span>
-                    </div>
-                  </div>
-                  <div className="bg-green-50/50 rounded-lg p-2 border border-green-100/50">
-                    <div className="text-[10px] text-green-600 font-bold uppercase mb-0.5">Nghiệm thu (QA)</div>
-                    <div className="flex items-end gap-1">
-                      <span className="text-sm font-bold text-green-700">{approved}</span>
-                      <span className="text-[10px] text-green-400 mb-0.5">/ {total}</span>
-                    </div>
-                  </div>
+                <div className="text-right">
+                  <div className="text-[9px] font-bold text-blue-600">GS: {doneOrMore}/{total}</div>
+                  <div className="text-[9px] font-bold text-green-600">QA: {approved}/{total}</div>
                 </div>
+              </div>
+
+              <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden relative border border-gray-100/50">
+                 {/* GS completion shadow bar */}
+                 <div className="absolute inset-y-0 left-0 bg-blue-100 transition-all" 
+                   style={{ width: `${total > 0 ? (doneOrMore/total)*100 : 0}%` }} />
+                 {/* QA/Approved bar */}
+                 <div className={`absolute inset-y-0 left-0 rounded-full transition-all ${pct === 100 ? "bg-green-500" : "bg-orange-500"}`} 
+                   style={{ width: `${pct}%` }} />
               </div>
             </div>
           )

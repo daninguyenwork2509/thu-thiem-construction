@@ -134,37 +134,19 @@ export default function ProjectConstructionStep({
   return (
     <div className="space-y-3 pb-6">
       {/* Overall summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold text-gray-700">Tiến độ thi công tổng thể</span>
-          <div className="flex items-center gap-4">
-            <span className="text-2xl font-black text-orange-600">{overallPct}%</span>
-            <div className="px-3 py-1.5 text-[11px] font-bold bg-white/60 text-orange-600 border border-orange-200 rounded-lg shadow-sm flex items-center gap-1.5">
-               Biểu đồ đồng bộ từ tab BOQ <Check className="w-3.5 h-3.5 text-green-500" />
-            </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tiến độ thi công tổng thể</div>
+            <div className="text-3xl font-black text-gray-900 tracking-tight">{overallPct}%</div>
+          </div>
+          <div className="px-3 py-1.5 text-[11px] font-bold bg-green-50 text-green-700 border border-green-100 rounded-full flex items-center gap-1.5">
+             Đồng bộ từ BOQ <Check className="w-3.5 h-3.5" />
           </div>
         </div>
-        <div className="h-3 bg-white/60 rounded-full overflow-hidden mb-3">
-          <div className="h-full rounded-full transition-all"
-            style={{ width: `${overallPct}%`, background:"linear-gradient(90deg,#2563eb,#f97316)" }} />
-        </div>
-        <div className="grid grid-cols-5 gap-2">
-          {dynamicPhases.map(ph => {
-            const pct = phasePct(ph.id)
-            const isDelayed = ph.items.some(i => i.timeliness === "late")
-            return (
-              <div key={ph.id} className="text-center bg-white/40 p-1.5 rounded-lg border border-white/50">
-                <div className="text-[10px] text-gray-500 font-semibold truncate mb-1" title={ph.name}>{ph.name}</div>
-                <div className={`text-[11px] font-bold ${pct===100?"text-green-600":isDelayed?"text-yellow-600":pct>0?"text-orange-600":"text-gray-400"}`}>
-                  {pct}%
-                </div>
-                <div className="h-1.5 bg-white rounded-full mt-1 overflow-hidden shadow-inner">
-                  <div className="h-full rounded-full"
-                    style={{ width:`${pct}%`, backgroundColor: pct===100?"#16a34a":isDelayed?"#ca8a04":pct>0?"#f97316":"#e5e7eb" }} />
-                </div>
-              </div>
-            )
-          })}
+        <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-1000"
+            style={{ width: `${overallPct}%`, background:"linear-gradient(90deg, #3b82f6, #f97316)" }} />
         </div>
       </div>
 
